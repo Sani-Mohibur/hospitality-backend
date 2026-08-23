@@ -17,7 +17,15 @@ const userSchema = new Schema<IUser>(
     role: {
       type: String,
       enum: Object.values(USER_ROLE),
-      default: USER_ROLE.USER,
+      default: USER_ROLE.STAFF, // updated default to staff instead of non-existent USER
+    },
+    tenantId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Tenant',
+    },
+    locationId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Location',
     },
     profileImage: {
       url: { type: String },

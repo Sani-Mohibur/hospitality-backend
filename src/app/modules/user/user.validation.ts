@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { USER_ROLE } from './user.constant';
 
 const createUserValidationSchema = z.object({
   body: z.object({
@@ -10,6 +11,9 @@ const createUserValidationSchema = z.object({
     password: z
       .string()
       .min(6, 'Password must be at least 6 characters'),
+    role: z.enum([...Object.values(USER_ROLE)] as [string, ...string[]]).optional(),
+    tenantId: z.string().optional(),
+    locationId: z.string().optional(),
     profileImage: z.string().optional(),
   }),
 });

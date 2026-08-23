@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    // Modules
+    "module": "commonjs",
+    "target": "esnext",
+
+    // File Layout
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    // Type Declarations
+    "types": ["node"],
+
+    // Source Maps & Declarations
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+
+    // Stricter Typechecking Options
+    "noUncheckedIndexedAccess": true,
+    "strict": true,
+
+    // Interop Constraints
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true
+  },
+
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}

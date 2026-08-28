@@ -29,7 +29,7 @@ router.post('/verify-otp', authRateLimiter, AuthControllers.verifyOtp);
 router.post('/reset-password', AuthControllers.resetPassword);
 router.post(
   '/change-password',
-  auth(USER_ROLE.USER, USER_ROLE.ADMIN),
+  auth(USER_ROLE.SUPER_ADMIN, USER_ROLE.TENANT_OWNER, USER_ROLE.TENANT_MANAGER, USER_ROLE.STAFF),
   AuthControllers.changePassword,
 );
 

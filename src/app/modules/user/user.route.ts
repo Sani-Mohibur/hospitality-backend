@@ -8,17 +8,17 @@ const router = express.Router();
 
 router.get(
   '/me',
-  auth(USER_ROLE.USER, USER_ROLE.ADMIN),
+  auth(USER_ROLE.SUPER_ADMIN, USER_ROLE.TENANT_OWNER, USER_ROLE.TENANT_MANAGER, USER_ROLE.STAFF),
   UserControllers.getProfile,
 );
 router.patch(
   '/update-profile',
-  auth(USER_ROLE.USER, USER_ROLE.ADMIN),
+  auth(USER_ROLE.SUPER_ADMIN, USER_ROLE.TENANT_OWNER, USER_ROLE.TENANT_MANAGER, USER_ROLE.STAFF),
   fileUploader.upload.single('file'),
   UserControllers.updateProfile,
 );
-router.get('/', auth(USER_ROLE.ADMIN), UserControllers.getAllUsers);
-router.get('/:id', auth(USER_ROLE.ADMIN), UserControllers.getSingleUser);
-router.delete('/:id', auth(USER_ROLE.ADMIN), UserControllers.deleteUser);
+router.get('/', auth(USER_ROLE.SUPER_ADMIN), UserControllers.getAllUsers);
+router.get('/:id', auth(USER_ROLE.SUPER_ADMIN), UserControllers.getSingleUser);
+router.delete('/:id', auth(USER_ROLE.SUPER_ADMIN), UserControllers.deleteUser);
 
 export const UserRoutes = router;

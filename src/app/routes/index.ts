@@ -7,6 +7,10 @@ import { RoomCategoryRoutes } from '../modules/hospitality/roomCategory/roomCate
 import { RoomRoutes } from '../modules/hospitality/room/room.route';
 import { GuestRoutes } from '../modules/hospitality/guest/guest.route';
 import { ReservationRoutes } from '../modules/hospitality/reservation/reservation.route';
+import { MenuCategoryRoutes } from '../modules/restaurant/menuCategory/menuCategory.route';
+import { MenuItemRoutes } from '../modules/restaurant/menuItem/menuItem.route';
+import { TableRoutes } from '../modules/restaurant/table/table.route';
+import { OrderRoutes } from '../modules/restaurant/order/order.route';
 
 const router = Router();
 
@@ -42,6 +46,22 @@ const moduleRoutes = [
   {
     path: '/reservation',
     route: ReservationRoutes,
+  },
+  {
+    path: '/restaurant/menu-category',
+    route: MenuCategoryRoutes,
+  },
+  {
+    path: '/restaurant/menu-item',
+    route: MenuItemRoutes,
+  },
+  {
+    path: '/restaurant/table',
+    route: TableRoutes,
+  },
+  {
+    path: '/restaurant/order',
+    route: OrderRoutes,
   },
 ];
 

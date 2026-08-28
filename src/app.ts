@@ -45,7 +45,7 @@ app.get('/', (req: Request, res: Response) => {
   res.status(200).json({
     success: true,
     message: 'API is running successfully',
-    version: '2.0.0',
+    version: '1.0.0',
     environment: config.env,
   });
 });

@@ -50,10 +50,44 @@ const deleteTenant = catchAsync(async (req, res) => {
   });
 });
 
+const suspendTenant = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const result = await TenantServices.suspendTenant(id as string);
+  res.status(httpStatus.OK).json({
+    success: true,
+    message: 'Tenant suspended successfully',
+    data: result,
+  });
+});
+
+const reactivateTenant = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const result = await TenantServices.reactivateTenant(id as string);
+  res.status(httpStatus.OK).json({
+    success: true,
+    message: 'Tenant reactivated successfully',
+    data: result,
+  });
+});
+
+const updateTenantFeatures = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { modules } = req.body;
+  const result = await TenantServices.updateTenantFeatures(id as string, modules);
+  res.status(httpStatus.OK).json({
+    success: true,
+    message: 'Tenant features updated successfully',
+    data: result,
+  });
+});
+
 export const TenantControllers = {
   createTenant,
   getAllTenants,
   getTenantById,
   updateTenant,
   deleteTenant,
+  suspendTenant,
+  reactivateTenant,
+  updateTenantFeatures,
 };

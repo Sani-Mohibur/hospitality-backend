@@ -1,6 +1,5 @@
 import { Schema, model } from 'mongoose';
 import { ITenant } from './tenant.interface';
-import { FEATURE_MODULES } from '../user/user.constant';
 
 const tenantSchema = new Schema<ITenant>(
   {
@@ -12,9 +11,12 @@ const tenantSchema = new Schema<ITenant>(
     modules: [
       {
         type: String,
-        enum: Object.values(FEATURE_MODULES),
       },
     ],
+    subscriptionId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Subscription',
+    },
     isActive: {
       type: Boolean,
       default: true,

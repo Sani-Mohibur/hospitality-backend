@@ -1,10 +1,11 @@
-import { FEATURE_MODULES } from '../user/user.constant';
+import { Types } from 'mongoose';
 
-export type TFeatureModule = keyof typeof FEATURE_MODULES;
+export type TFeatureModule = string;
 
 export interface ITenant {
   name: string;
   modules: TFeatureModule[];
   isActive: boolean;
   isDeleted: boolean;
+  subscriptionId?: Types.ObjectId;
 }

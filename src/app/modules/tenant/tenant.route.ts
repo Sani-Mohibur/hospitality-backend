@@ -27,4 +27,8 @@ router.patch(
 
 router.delete('/:id', auth(USER_ROLE.SUPER_ADMIN), TenantControllers.deleteTenant);
 
+router.patch('/:id/suspend', auth(USER_ROLE.SUPER_ADMIN), TenantControllers.suspendTenant);
+router.patch('/:id/reactivate', auth(USER_ROLE.SUPER_ADMIN), TenantControllers.reactivateTenant);
+router.patch('/:id/features', auth(USER_ROLE.SUPER_ADMIN), TenantControllers.updateTenantFeatures);
+
 export const TenantRoutes = router;

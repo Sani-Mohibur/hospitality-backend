@@ -32,10 +32,40 @@ const deleteTenant = async (id: string) => {
   return result;
 };
 
+const suspendTenant = async (id: string) => {
+  const result = await Tenant.findByIdAndUpdate(
+    id,
+    { isActive: false },
+    { new: true, runValidators: true }
+  );
+  return result;
+};
+
+const reactivateTenant = async (id: string) => {
+  const result = await Tenant.findByIdAndUpdate(
+    id,
+    { isActive: true },
+    { new: true, runValidators: true }
+  );
+  return result;
+};
+
+const updateTenantFeatures = async (id: string, modules: string[]) => {
+  const result = await Tenant.findByIdAndUpdate(
+    id,
+    { modules },
+    { new: true, runValidators: true }
+  );
+  return result;
+};
+
 export const TenantServices = {
   createTenant,
   getAllTenants,
   getTenantById,
   updateTenant,
   deleteTenant,
+  suspendTenant,
+  reactivateTenant,
+  updateTenantFeatures,
 };

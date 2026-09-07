@@ -11,6 +11,9 @@ import { MenuCategoryRoutes } from '../modules/restaurant/menuCategory/menuCateg
 import { MenuItemRoutes } from '../modules/restaurant/menuItem/menuItem.route';
 import { TableRoutes } from '../modules/restaurant/table/table.route';
 import { OrderRoutes } from '../modules/restaurant/order/order.route';
+import { PlatformModuleRoutes } from '../modules/platformModule/platformModule.route';
+import { SubscriptionRoutes } from '../modules/subscription/subscription.route';
+import { SuperAdminRoutes } from '../modules/superAdmin/superAdmin.route';
 
 const router = Router();
 
@@ -62,6 +65,18 @@ const moduleRoutes = [
   {
     path: '/restaurant/order',
     route: OrderRoutes,
+  },
+  {
+    path: '/platform-module',
+    route: PlatformModuleRoutes,
+  },
+  {
+    path: '/subscription',
+    route: SubscriptionRoutes,
+  },
+  {
+    path: '/super-admin',
+    route: SuperAdminRoutes,
   },
 ];
 

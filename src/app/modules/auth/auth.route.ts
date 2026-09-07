@@ -33,4 +33,10 @@ router.post(
   AuthControllers.changePassword,
 );
 
+router.post(
+  '/impersonate',
+  auth(USER_ROLE.SUPER_ADMIN),
+  AuthControllers.impersonateTenant
+);
+
 export const AuthRoutes = router;

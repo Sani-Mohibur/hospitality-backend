@@ -218,6 +218,42 @@ const changePassword = async (
   };
 };
 
+const impersonateTenant = async (tenantId: string) => {
+  // Find a TENANT_OWNER or TENANT_MANAGER for the given tenant
+  const user = await User.findOne({ 
+    tenantId, 
+    role: { $in: ['TENANT_OWNER', 'TENANT_MANAGER'] } 
+  });
+  
+  if (!user) {
+    throw new AppError(404, 'No suitable user found for this tenant to impersonate');
+  }
+
+  const jwtPayload = {
+    id: user._id,
+    role: user.role,
+    email: user.email,
+    tenantId: user.tenantId, // Ensure tenantId is in payload
+  };
+
+  const accessToken = jwtHelpers.createToken(
+    jwtPayload,
+    config.jwt.access_secret as Secret,
+    config.jwt.access_expires_in as string | number,
+  );
+
+  return {
+    accessToken,
+    user: {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenantId,
+    },
+  };
+};
+
 export const AuthServices = {
   registerUser,
   loginUser,
@@ -226,4 +262,5 @@ export const AuthServices = {
   verifyOtp,
   resetPassword,
   changePassword,
+  impersonateTenant,
 };

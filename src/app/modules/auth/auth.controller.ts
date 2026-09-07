@@ -155,6 +155,18 @@ const logoutUser = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const impersonateTenant = catchAsync(async (req: Request, res: Response) => {
+  const { tenantId } = req.body;
+  const result = await AuthServices.impersonateTenant(tenantId);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Impersonated tenant successfully',
+    data: result,
+  });
+});
+
 export const AuthControllers = {
   registerUser,
   loginUser,
@@ -164,4 +176,5 @@ export const AuthControllers = {
   resetPassword,
   changePassword,
   logoutUser,
+  impersonateTenant,
 };

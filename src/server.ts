@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import app from './app';
 import config from './app/config';
 import logger from './app/utils/logger';
+import { socketManager } from './app/utils/socket';
 
 let server: Server;
 
@@ -14,6 +15,9 @@ async function main() {
     server = app.listen(config.port, () => {
       logger.info(`Server is running on port ${config.port}`);
     });
+
+    // Initialize Socket.io
+    socketManager.init(server);
   } catch (err) {
     logger.error(err, 'Failed to connect to database:');
     process.exit(1); // Exit if DB fails on startup

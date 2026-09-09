@@ -10,8 +10,6 @@ const createReservationValidationSchema = z.object({
     checkInDate: z.string().datetime({ message: 'Valid check-in date is required' }),
     checkOutDate: z.string().datetime({ message: 'Valid check-out date is required' }),
     status: z.enum([...Object.values(RESERVATION_STATUS)] as [string, ...string[]]).optional(),
-    totalAmount: z.number({ message: 'Total amount is required' }).min(0),
-    paidAmount: z.number().min(0).optional(),
   }).refine((data) => new Date(data.checkInDate) < new Date(data.checkOutDate), {
     message: 'Check-in date must be before check-out date',
     path: ['checkOutDate'],
@@ -27,8 +25,6 @@ const updateReservationValidationSchema = z.object({
     checkInDate: z.string().datetime().optional(),
     checkOutDate: z.string().datetime().optional(),
     status: z.enum([...Object.values(RESERVATION_STATUS)] as [string, ...string[]]).optional(),
-    totalAmount: z.number().min(0).optional(),
-    paidAmount: z.number().min(0).optional(),
     isActive: z.boolean().optional(),
   }).refine((data) => {
     if (data.checkInDate && data.checkOutDate) {

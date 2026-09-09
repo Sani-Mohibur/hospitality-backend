@@ -4,8 +4,11 @@ import validateRequest from '../../../middlewares/validateRequest';
 import { ReservationValidation } from './reservation.validation';
 import auth from '../../../middlewares/auth';
 import { USER_ROLE } from '../../user/user.constant';
+import auditLogger from '../../../middlewares/auditLogger';
 
 const router = Router();
+
+router.use(auditLogger('Reservation'));
 
 router.post(
   '/',

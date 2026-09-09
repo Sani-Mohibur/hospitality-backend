@@ -18,8 +18,6 @@ export interface IReservation {
   checkInDate: Date;
   checkOutDate: Date;
   status: TReservationStatus;
-  totalAmount: number;
-  paidAmount: number;
   isActive: boolean;
   isDeleted: boolean;
 }

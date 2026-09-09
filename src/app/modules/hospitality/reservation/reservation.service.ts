@@ -2,6 +2,12 @@ import httpStatus from 'http-status';
 import AppError from '../../../errors/AppError';
 import { IReservation, RESERVATION_STATUS } from './reservation.interface';
 import { Reservation } from './reservation.model';
+import { Folio } from '../folio/folio.model';
+import { FolioCharge } from '../folioCharge/folioCharge.model';
+import { Room } from '../room/room.model';
+import { RoomCategory } from '../roomCategory/roomCategory.model';
+import { FOLIO_STATUS } from '../folio/folio.interface';
+import { CHARGE_CATEGORY } from '../folioCharge/folioCharge.interface';
 
 const checkAvailability = async (roomId: string, checkInDate: Date, checkOutDate: Date, excludeReservationId?: string) => {
   const overlappingReservationQuery: any = {
@@ -35,6 +41,37 @@ const createReservation = async (payload: IReservation) => {
   }
 
   const result = await Reservation.create(payload);
+
+  // Auto-create a default Folio
+  const folio = await Folio.create({
+    reservationId: result._id,
+    guestId: result.guestId,
+    tenantId: result.tenantId,
+    locationId: result.locationId,
+    status: FOLIO_STATUS.OPEN,
+  });
+
+  // Calculate room charge and add FolioCharge
+  const room = await Room.findById(result.roomId);
+  if (room) {
+    const roomCategory = await RoomCategory.findById(room.roomCategoryId);
+    if (roomCategory) {
+      const checkInDate = new Date(result.checkInDate);
+      const checkOutDate = new Date(result.checkOutDate);
+      const diffTime = Math.abs(checkOutDate.getTime() - checkInDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1; // Default to 1 night minimum
+      const totalRoomCharge = diffDays * roomCategory.basePrice;
+
+      await FolioCharge.create({
+        folioId: folio._id,
+        tenantId: folio.tenantId,
+        amount: totalRoomCharge,
+        chargeCategory: CHARGE_CATEGORY.ROOM,
+        description: `Room charge for ${diffDays} night(s)`,
+      });
+    }
+  }
+
   return result;
 };
 

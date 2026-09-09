@@ -30,8 +30,6 @@ const reservationSchema = new Schema<IReservation>(
       enum: Object.values(RESERVATION_STATUS),
       default: RESERVATION_STATUS.PENDING,
     },
-    totalAmount: { type: Number, required: true },
-    paidAmount: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
     isDeleted: { type: Boolean, default: false },
   },

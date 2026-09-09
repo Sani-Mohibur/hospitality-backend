@@ -1,5 +1,15 @@
 import { Schema, model } from 'mongoose';
-import { IOrder, ORDER_STATUS, ORDER_TYPE, PAYMENT_STATUS } from './order.interface';
+import { IOrder, IOrderStatusHistory, ORDER_STATUS, ORDER_TYPE, PAYMENT_STATUS } from './order.interface';
+
+const orderStatusHistorySchema = new Schema<IOrderStatusHistory>(
+  {
+    status: { type: String, enum: Object.values(ORDER_STATUS), required: true },
+    changedAt: { type: Date, default: Date.now },
+    changedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    remarks: { type: String },
+  },
+  { _id: false },
+);
 
 const orderSchema = new Schema<IOrder>(
   {
@@ -37,6 +47,7 @@ const orderSchema = new Schema<IOrder>(
     ],
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
     locationId: { type: Schema.Types.ObjectId, ref: 'Location', required: true },
+    statusHistory: [orderStatusHistorySchema],
     isActive: { type: Boolean, default: true },
     isDeleted: { type: Boolean, default: false },
   },

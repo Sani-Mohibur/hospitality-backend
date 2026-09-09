@@ -25,6 +25,13 @@ export interface IOrderItemModifier {
   price: number;
 }
 
+export interface IOrderStatusHistory {
+  status: typeof ORDER_STATUS[keyof typeof ORDER_STATUS];
+  changedAt: Date;
+  changedBy?: Types.ObjectId;
+  remarks?: string;
+}
+
 export interface IOrderItem {
   menuItemId: Types.ObjectId;
   quantity: number;
@@ -43,6 +50,7 @@ export interface IOrder {
   items: IOrderItem[];
   tenantId: Types.ObjectId;
   locationId: Types.ObjectId;
+  statusHistory?: IOrderStatusHistory[];
   isActive: boolean;
   isDeleted: boolean;
 }

@@ -5,8 +5,10 @@ import { OrderServices } from './order.service';
 const createOrder = catchAsync(async (req, res) => {
   const tenantId = req.user.role === 'SUPER_ADMIN' ? req.body.tenantId : req.user.tenantId;
   const payload = { ...req.body, tenantId };
+  // @ts-ignore
+  const userId = req.user.id || req.user._id;
 
-  const result = await OrderServices.createOrder(payload);
+  const result = await OrderServices.createOrder(payload, userId);
   res.status(httpStatus.CREATED).json({
     success: true,
     message: 'Order created successfully',
@@ -40,8 +42,10 @@ const getOrderById = catchAsync(async (req, res) => {
 const updateOrder = catchAsync(async (req, res) => {
   const { id } = req.params;
   const tenantId = req.user.role === 'SUPER_ADMIN' && req.query.tenantId ? req.query.tenantId as string : req.user.tenantId;
+  // @ts-ignore
+  const userId = req.user.id || req.user._id;
 
-  const result = await OrderServices.updateOrder(id as string, tenantId, req.body);
+  const result = await OrderServices.updateOrder(id as string, tenantId, req.body, userId);
   res.status(httpStatus.OK).json({
     success: true,
     message: 'Order updated successfully',

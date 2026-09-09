@@ -4,8 +4,11 @@ import validateRequest from '../../../middlewares/validateRequest';
 import { OrderValidation } from './order.validation';
 import auth from '../../../middlewares/auth';
 import { USER_ROLE } from '../../user/user.constant';
+import auditLogger from '../../../middlewares/auditLogger';
 
 const router = express.Router();
+
+router.use(auditLogger('Order'));
 
 router.post(
   '/',

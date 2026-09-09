@@ -7,6 +7,8 @@ import { RoomCategoryRoutes } from '../modules/hospitality/roomCategory/roomCate
 import { RoomRoutes } from '../modules/hospitality/room/room.route';
 import { GuestRoutes } from '../modules/hospitality/guest/guest.route';
 import { ReservationRoutes } from '../modules/hospitality/reservation/reservation.route';
+import { FolioRoutes } from '../modules/hospitality/folio/folio.route';
+import { FolioChargeRoutes } from '../modules/hospitality/folioCharge/folioCharge.route';
 import { MenuCategoryRoutes } from '../modules/restaurant/menuCategory/menuCategory.route';
 import { MenuItemRoutes } from '../modules/restaurant/menuItem/menuItem.route';
 import { TableRoutes } from '../modules/restaurant/table/table.route';
@@ -14,6 +16,10 @@ import { OrderRoutes } from '../modules/restaurant/order/order.route';
 import { PlatformModuleRoutes } from '../modules/platformModule/platformModule.route';
 import { SubscriptionRoutes } from '../modules/subscription/subscription.route';
 import { SuperAdminRoutes } from '../modules/superAdmin/superAdmin.route';
+import { AuditLogRoutes } from '../modules/auditLog/auditLog.route';
+import { NotificationRoutes } from '../modules/notification/notification.route';
+import { ReportRoutes } from '../modules/report/report.route';
+import { PaymentRoutes } from '../modules/payment/payment.route';
 
 const router = Router();
 
@@ -51,6 +57,14 @@ const moduleRoutes = [
     route: ReservationRoutes,
   },
   {
+    path: '/folio',
+    route: FolioRoutes,
+  },
+  {
+    path: '/folio-charge',
+    route: FolioChargeRoutes,
+  },
+  {
     path: '/restaurant/menu-category',
     route: MenuCategoryRoutes,
   },
@@ -77,6 +91,22 @@ const moduleRoutes = [
   {
     path: '/super-admin',
     route: SuperAdminRoutes,
+  },
+  {
+    path: '/audit-log',
+    route: AuditLogRoutes,
+  },
+  {
+    path: '/notification',
+    route: NotificationRoutes,
+  },
+  {
+    path: '/report',
+    route: ReportRoutes,
+  },
+  {
+    path: '/payment',
+    route: PaymentRoutes,
   },
 ];
 

@@ -2,6 +2,7 @@ import { IOrder, ORDER_STATUS } from './order.interface';
 import { Order } from './order.model';
 import AppError from '../../../errors/AppError';
 import httpStatus from 'http-status';
+import { socketManager } from '../../../utils/socket';
 
 const createOrder = async (payload: IOrder, userId: string) => {
   payload.statusHistory = [
@@ -12,6 +13,10 @@ const createOrder = async (payload: IOrder, userId: string) => {
     },
   ];
   const result = await Order.create(payload);
+
+  // Emit event to the tenant's room
+  socketManager.emitToRoom(payload.tenantId.toString(), 'new_order', result);
+
   return result;
 };
 
@@ -20,6 +25,18 @@ const getAllOrders = async (tenantId: string) => {
     .populate('tableId')
     .populate('items.menuItemId')
     .populate('locationId');
+  return result;
+};
+
+const getKitchenQueue = async (tenantId: string) => {
+  const result = await Order.find({
+    tenantId,
+    status: { $in: [ORDER_STATUS.PENDING, ORDER_STATUS.IN_PROGRESS] },
+  })
+    .populate('tableId')
+    .populate('items.menuItemId')
+    .populate('locationId')
+    .sort({ createdAt: 1 }); // Oldest first
   return result;
 };
 
@@ -50,6 +67,10 @@ const updateOrder = async (id: string, tenantId: string, payload: Partial<IOrder
 
   Object.assign(order, payload);
   const result = await order.save();
+
+  // Emit event if status was updated (or generally when order is updated)
+  socketManager.emitToRoom(tenantId, 'order_updated', result);
+
   return result;
 };
 
@@ -65,6 +86,7 @@ const deleteOrder = async (id: string, tenantId: string) => {
 export const OrderServices = {
   createOrder,
   getAllOrders,
+  getKitchenQueue,
   getOrderById,
   updateOrder,
   deleteOrder,

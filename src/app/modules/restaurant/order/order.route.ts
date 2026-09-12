@@ -24,6 +24,12 @@ router.get(
 );
 
 router.get(
+  '/kitchen-queue',
+  auth(USER_ROLE.SUPER_ADMIN, USER_ROLE.TENANT_OWNER, USER_ROLE.TENANT_MANAGER, USER_ROLE.STAFF),
+  OrderControllers.getKitchenQueue,
+);
+
+router.get(
   '/:id',
   auth(USER_ROLE.SUPER_ADMIN, USER_ROLE.TENANT_OWNER, USER_ROLE.TENANT_MANAGER, USER_ROLE.STAFF),
   OrderControllers.getOrderById,

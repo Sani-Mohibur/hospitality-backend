@@ -27,6 +27,17 @@ const getAllOrders = catchAsync(async (req, res) => {
   });
 });
 
+const getKitchenQueue = catchAsync(async (req, res) => {
+  const tenantId = req.user.role === 'SUPER_ADMIN' && req.query.tenantId ? req.query.tenantId as string : req.user.tenantId;
+
+  const result = await OrderServices.getKitchenQueue(tenantId);
+  res.status(httpStatus.OK).json({
+    success: true,
+    message: 'Kitchen queue retrieved successfully',
+    data: result,
+  });
+});
+
 const getOrderById = catchAsync(async (req, res) => {
   const { id } = req.params;
   const tenantId = req.user.role === 'SUPER_ADMIN' && req.query.tenantId ? req.query.tenantId as string : req.user.tenantId;
@@ -68,6 +79,7 @@ const deleteOrder = catchAsync(async (req, res) => {
 export const OrderControllers = {
   createOrder,
   getAllOrders,
+  getKitchenQueue,
   getOrderById,
   updateOrder,
   deleteOrder,

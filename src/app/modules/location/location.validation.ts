@@ -1,24 +1,40 @@
 import { z } from 'zod';
 
+const timeOfDay = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:mm');
+
+const validTimezone = z.string().refine((tz) => {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}, 'Unknown timezone');
+
+const fields = {
+  name: z.string().min(1),
+  code: z.string().max(8).optional(),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().email().optional(),
+  timezone: validTimezone.optional(),
+  currency: z.string().length(3).optional(),
+  checkInTime: timeOfDay.optional(),
+  checkOutTime: timeOfDay.optional(),
+  hasRooms: z.boolean().optional(),
+  invoicePrefix: z.string().max(10).optional(),
+  nightAudit: z.object({ autoRun: z.boolean().optional(), runAt: timeOfDay.optional() }).optional(),
+  publicBooking: z
+    .object({ enabled: z.boolean().optional(), slug: z.string().regex(/^[a-z0-9-]{3,60}$/).optional() })
+    .optional(),
+};
+
 const createLocationValidationSchema = z.object({
-  body: z.object({
-    name: z.string({
-      message: 'Name is required',
-    }),
-    tenantId: z.string({
-      message: 'Tenant ID is required',
-    }),
-    address: z.string().optional(),
-  }),
+  body: z.object(fields),
 });
 
 const updateLocationValidationSchema = z.object({
-  body: z.object({
-    name: z.string().optional(),
-    tenantId: z.string().optional(),
-    address: z.string().optional(),
-    isActive: z.boolean().optional(),
-  }),
+  body: z.object({ ...fields, name: fields.name.optional(), isActive: z.boolean().optional() }),
 });
 
 export const LocationValidation = {

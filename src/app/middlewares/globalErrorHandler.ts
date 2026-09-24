@@ -8,6 +8,7 @@ import handleCastError from '../errors/handleCastError';
 import handleDuplicateError from '../errors/handleDuplicateError';
 import AppError from '../errors/AppError';
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Express needs the 4-argument signature
 const globalErrorHandler: ErrorRequestHandler = (err, req, res, next) => {
     // console.error the full error object for better debugging in development
     if (config.env === 'development') {

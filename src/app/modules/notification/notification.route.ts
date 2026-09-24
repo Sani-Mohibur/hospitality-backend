@@ -1,20 +1,11 @@
 import express from 'express';
 import { NotificationController } from './notification.controller';
-import auth from '../../middlewares/auth';
-import { USER_ROLE } from '../user/user.constant';
+import { tenantUser } from '../../middlewares/auth';
 
 const router = express.Router();
 
-router.get(
-  '/',
-  auth(USER_ROLE.SUPER_ADMIN, USER_ROLE.TENANT_OWNER, USER_ROLE.TENANT_MANAGER, USER_ROLE.STAFF),
-  NotificationController.getMyNotifications
-);
-
-router.patch(
-  '/:id/read',
-  auth(USER_ROLE.SUPER_ADMIN, USER_ROLE.TENANT_OWNER, USER_ROLE.TENANT_MANAGER, USER_ROLE.STAFF),
-  NotificationController.markAsRead
-);
+router.get('/', tenantUser(), NotificationController.getMyNotifications);
+router.patch('/read-all', tenantUser(), NotificationController.markAllRead);
+router.patch('/:id/read', tenantUser(), NotificationController.markAsRead);
 
 export const NotificationRoutes = router;

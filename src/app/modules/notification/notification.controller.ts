@@ -5,12 +5,7 @@ import { NotificationService } from './notification.service';
 import httpStatus from 'http-status';
 
 const getMyNotifications = catchAsync(async (req: Request, res: Response) => {
-  // @ts-ignore
-  const userId = req.user?._id || req.user?.id;
-  // @ts-ignore
-  const tenantId = req.user?.tenant;
-
-  const result = await NotificationService.getMyNotifications(userId, tenantId);
+  const result = await NotificationService.getMyNotifications(req.user.id, req.query);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -21,11 +16,7 @@ const getMyNotifications = catchAsync(async (req: Request, res: Response) => {
 });
 
 const markAsRead = catchAsync(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  // @ts-ignore
-  const userId = req.user?._id || req.user?.id;
-
-  const result = await NotificationService.markAsRead(id as string, userId);
+  const result = await NotificationService.markAsRead(req.params.id as string, req.user.id);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -35,7 +26,13 @@ const markAsRead = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const markAllRead = catchAsync(async (req: Request, res: Response) => {
+  await NotificationService.markAllRead(req.user.id);
+  sendResponse(res, { statusCode: httpStatus.OK, success: true, message: 'All notifications marked as read', data: null });
+});
+
 export const NotificationController = {
   getMyNotifications,
   markAsRead,
+  markAllRead,
 };

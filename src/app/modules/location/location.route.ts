@@ -2,41 +2,31 @@ import { Router } from 'express';
 import { LocationControllers } from './location.controller';
 import validateRequest from '../../middlewares/validateRequest';
 import { LocationValidation } from './location.validation';
-import auth from '../../middlewares/auth';
-import { USER_ROLE } from '../user/user.constant';
+import { authorize, tenantUser } from '../../middlewares/auth';
+import { PERMISSION } from '../user/user.constant';
 
 const router = Router();
 
 router.post(
   '/',
-  auth(USER_ROLE.SUPER_ADMIN, USER_ROLE.TENANT_OWNER, USER_ROLE.TENANT_MANAGER),
+  tenantUser(),
+  authorize(PERMISSION.LOCATIONS_MANAGE),
   validateRequest(LocationValidation.createLocationValidationSchema),
   LocationControllers.createLocation,
 );
 
-router.get(
-  '/',
-  auth(USER_ROLE.SUPER_ADMIN, USER_ROLE.TENANT_OWNER, USER_ROLE.TENANT_MANAGER, USER_ROLE.STAFF),
-  LocationControllers.getAllLocations
-);
+router.get('/', tenantUser(), LocationControllers.getAllLocations);
 
-router.get(
-  '/:id',
-  auth(USER_ROLE.SUPER_ADMIN, USER_ROLE.TENANT_OWNER, USER_ROLE.TENANT_MANAGER, USER_ROLE.STAFF),
-  LocationControllers.getLocationById
-);
+router.get('/:id', tenantUser(), LocationControllers.getLocationById);
 
 router.patch(
   '/:id',
-  auth(USER_ROLE.SUPER_ADMIN, USER_ROLE.TENANT_OWNER, USER_ROLE.TENANT_MANAGER),
+  tenantUser(),
+  authorize(PERMISSION.LOCATIONS_MANAGE),
   validateRequest(LocationValidation.updateLocationValidationSchema),
   LocationControllers.updateLocation,
 );
 
-router.delete(
-  '/:id',
-  auth(USER_ROLE.SUPER_ADMIN, USER_ROLE.TENANT_OWNER, USER_ROLE.TENANT_MANAGER),
-  LocationControllers.deleteLocation
-);
+router.delete('/:id', tenantUser(), authorize(PERMISSION.LOCATIONS_MANAGE), LocationControllers.deleteLocation);
 
 export const LocationRoutes = router;

@@ -1,23 +1,48 @@
 import { z } from 'zod';
-import { USER_ROLE } from './user.constant';
 
-const createUserValidationSchema = z.object({
+const objectId = z.string().regex(/^[a-f\d]{24}$/i, 'Invalid id');
+const pin = z.string().regex(/^\d{4,6}$/, 'PIN must be 4-6 digits');
+
+const createStaffValidationSchema = z.object({
   body: z.object({
     name: z.string().min(1, 'Name is required'),
-    email: z
-      .string()
-      .min(1, 'Email is required')
-      .email('Invalid email address'),
-    password: z
-      .string()
-      .min(6, 'Password must be at least 6 characters'),
-    role: z.enum([...Object.values(USER_ROLE)] as [string, ...string[]]).optional(),
-    tenantId: z.string().optional(),
-    locationId: z.string().optional(),
-    profileImage: z.string().optional(),
+    email: z.string().email('Invalid email address').optional(),
+    phone: z.string().optional(),
+    password: z.string().min(8, 'Password must be at least 8 characters').optional(),
+    role: z.enum(['TENANT_MANAGER', 'STAFF']).optional(),
+    roleId: objectId.optional(),
+    locationIds: z.array(objectId).optional(),
+    allLocations: z.boolean().optional(),
+    pin: pin.optional(),
+    sendInvite: z.boolean().optional(),
+  }),
+});
+
+const updateStaffValidationSchema = z.object({
+  body: z.object({
+    name: z.string().min(1).optional(),
+    phone: z.string().optional(),
+    role: z.enum(['TENANT_MANAGER', 'STAFF']).optional(),
+    roleId: objectId.optional(),
+    locationIds: z.array(objectId).optional(),
+    allLocations: z.boolean().optional(),
+    isActive: z.boolean().optional(),
+    pin: pin.optional(),
+  }),
+});
+
+const setPinValidationSchema = z.object({ body: z.object({ pin }) });
+
+const updateProfileValidationSchema = z.object({
+  body: z.object({
+    name: z.string().min(1).optional(),
+    phone: z.string().optional(),
   }),
 });
 
 export const UserValidation = {
-  createUserValidationSchema,
+  createStaffValidationSchema,
+  updateStaffValidationSchema,
+  setPinValidationSchema,
+  updateProfileValidationSchema,
 };

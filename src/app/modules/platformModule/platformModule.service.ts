@@ -18,7 +18,7 @@ const updatePlatformModuleIntoDB = async (
   payload: Partial<IPlatformModule>
 ) => {
   const result = await PlatformModule.findByIdAndUpdate(id, payload, {
-    new: true,
+    returnDocument: 'after',
     runValidators: true,
   });
   if (!result) {

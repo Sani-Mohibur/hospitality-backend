@@ -2,15 +2,15 @@ import { NextFunction, Request, Response } from 'express';
 import httpStatus from 'http-status';
 import catchAsync from '../utils/catchAsync';
 import AppError from '../errors/AppError';
-import { Tenant } from '../modules/tenant/tenant.model';
 import { TFeatureModule } from '../modules/tenant/tenant.interface';
+import { loadTenantState } from './auth';
 
 const requireModule = (requiredModule: TFeatureModule) => {
   return catchAsync(async (req: Request, res: Response, next: NextFunction) => {
     const { role, tenantId } = req.user;
 
     // Super admin has access to everything by default
-    if (role === 'SUPER_ADMIN') {
+    if (role === 'SUPER_ADMIN' && !tenantId) {
       return next();
     }
 
@@ -18,8 +18,7 @@ const requireModule = (requiredModule: TFeatureModule) => {
       throw new AppError(httpStatus.FORBIDDEN, 'You do not belong to any tenant');
     }
 
-    // Check if the tenant has the module enabled
-    const tenant = await Tenant.findById(tenantId);
+    const tenant = await loadTenantState(tenantId);
     if (!tenant) {
       throw new AppError(httpStatus.NOT_FOUND, 'Tenant not found');
     }

@@ -14,7 +14,9 @@ export default [
   ...tseslint.configs.recommended,
   {
     rules: {
-      'no-unused-vars': 'error',
+      // The base rule misreads TypeScript signatures; use the TS-aware rule instead.
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrors: 'none' }],
       'no-unused-expressions': 'error',
       'prefer-const': 'error',
       'no-console': 'warn',

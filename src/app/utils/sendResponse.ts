@@ -23,3 +23,18 @@ const sendResponse = <T>(res: Response, data: TResponse<T>) => {
 };
 
 export default sendResponse;
+
+// Shorthand used by the route-level handlers of newer modules.
+export const ok = <T>(
+    res: Response,
+    message: string,
+    data: T,
+    options: { statusCode?: number; meta?: TResponse<T>['meta'] } = {},
+) =>
+    sendResponse(res, {
+        statusCode: options.statusCode || 200,
+        success: true,
+        message,
+        meta: options.meta,
+        data,
+    });

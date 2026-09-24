@@ -53,7 +53,7 @@ export const otpTemplate = (otp: string) => {
       <p style="color: #4b5563;">If you did not request this code, please ignore this email or contact support.</p>
       
       <div class="footer">
-        <p>&copy; ${new Date().getFullYear()} Your App Name. All rights reserved.</p>
+        <p>&copy; ${new Date().getFullYear()} HPOS. All rights reserved.</p>
       </div>
     </div>
   </body>

@@ -3,7 +3,7 @@ import { INotification } from './notification.interface';
 
 const notificationSchema = new Schema<INotification>(
   {
-    tenant: {
+    tenantId: {
       type: Schema.Types.ObjectId,
       ref: 'Tenant',
       required: true,
@@ -34,6 +34,7 @@ const notificationSchema = new Schema<INotification>(
     readAt: {
       type: Date,
     },
+    link: { kind: String, id: Schema.Types.ObjectId },
     metadata: {
       type: Schema.Types.Mixed,
     },
@@ -42,5 +43,8 @@ const notificationSchema = new Schema<INotification>(
     timestamps: true,
   }
 );
+
+notificationSchema.index({ tenantId: 1, recipient: 1, createdAt: -1 });
+notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 24 * 3600 });
 
 export const Notification = model<INotification>('Notification', notificationSchema);

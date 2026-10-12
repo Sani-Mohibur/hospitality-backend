@@ -12,6 +12,8 @@ import { User } from './user.model';
 import { USER_ROLE } from './user.constant';
 import { Role } from '../role/role.model';
 import { Location } from '../location/location.model';
+import { Tenant } from '../tenant/tenant.model';
+import { Subscription } from '../subscription/subscription.model';
 import { activity } from '../auditLog/auditLog.service';
 import { revokeAllSessions, signPurposeToken } from '../auth/token.service';
 import { sendEmail } from '../../utils/sendEmail';
@@ -27,7 +29,26 @@ const getProfile = async (userId: string) => {
   if (!result) {
     throw new AppError(httpStatus.NOT_FOUND, 'User profile not found');
   }
-  return result;
+
+  let tenant = null;
+  if (result.tenantId) {
+    const tenantDoc = await requestContext.asSystem(() => Tenant.findById(result.tenantId).lean());
+    if (tenantDoc) {
+      let subscription = null;
+      if (tenantDoc.subscriptionId) {
+        subscription = await requestContext.asSystem(() => Subscription.findById(tenantDoc.subscriptionId).lean());
+      }
+      tenant = {
+        id: tenantDoc._id,
+        name: tenantDoc.name,
+        status: tenantDoc.status,
+        subscribedModules: tenantDoc.modules,
+        subscription,
+      };
+    }
+  }
+
+  return { ...result, tenant };
 };
 
 // Only personal fields can be changed here; role, tenant and grants are managed by admins.

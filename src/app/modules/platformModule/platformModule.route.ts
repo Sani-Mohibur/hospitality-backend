@@ -7,6 +7,11 @@ import { PlatformModuleControllers } from './platformModule.controller';
 
 const router = Router();
 
+router.get(
+  '/public',
+  PlatformModuleControllers.getAllPlatformModules
+);
+
 router.post(
   '/',
   auth(USER_ROLE.SUPER_ADMIN),

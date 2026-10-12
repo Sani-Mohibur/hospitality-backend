@@ -10,13 +10,17 @@ const createPlatformModuleIntoDB = async (payload: IPlatformModule) => {
 };
 
 const getAllPlatformModulesFromDB = async () => {
-  const [modules, tenantCounts] = await Promise.all([
-    PlatformModule.find().sort({ createdAt: 1 }).lean(),
-    Tenant.aggregate([
-      { $match: { isDeleted: false, status: { $ne: 'CANCELLED' } } },
-      { $unwind: '$modules' },
-      { $group: { _id: '$modules', count: { $sum: 1 } } },
-    ]),
+  let modules = await PlatformModule.find().sort({ createdAt: 1 }).lean();
+  if (modules.length === 0) {
+    for (const mod of DEFAULT_PLATFORM_MODULES) {
+      await PlatformModule.updateOne({ code: mod.code }, { $setOnInsert: mod }, { upsert: true });
+    }
+    modules = await PlatformModule.find().sort({ createdAt: 1 }).lean();
+  }
+  const tenantCounts = await Tenant.aggregate([
+    { $match: { isDeleted: false, status: { $ne: 'CANCELLED' } } },
+    { $unwind: '$modules' },
+    { $group: { _id: '$modules', count: { $sum: 1 } } },
   ]);
   const countMap = new Map(tenantCounts.map((r) => [r._id, r.count]));
   return modules.map((m) => ({

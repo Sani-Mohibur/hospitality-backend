@@ -6,6 +6,7 @@ import logger from './app/utils/logger';
 import { socketManager } from './app/utils/socket';
 import { socketAuthorizer } from './app/modules/system/socketAuthorizer';
 import { ensurePlatformModules } from './app/modules/subscription/subscription.service';
+import { UserServices } from './app/modules/user/user.service';
 import { registerJobs } from './app/jobs';
 import { startScheduler, stopScheduler } from './app/utils/scheduler';
 import { requestContext } from './app/utils/requestContext';
@@ -16,7 +17,10 @@ async function main() {
   try {
     await mongoose.connect(config.database_url as string);
     logger.info('Database connected successfully');
-    await requestContext.asSystem(() => ensurePlatformModules());
+    await requestContext.asSystem(async () => {
+      await ensurePlatformModules();
+      await UserServices.ensureSuperAdmin();
+    });
 
     server = app.listen(config.port, () => {
       logger.info(`Server is running on port ${config.port}`);

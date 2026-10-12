@@ -160,8 +160,40 @@ const recalculate = async (tenantId: string) =>
 
 const getAllSubscriptionsFromDB = async (query: Record<string, unknown> = {}) => {
   const filter: Record<string, unknown> = {};
-  if (query.status) filter.status = query.status;
-  return Subscription.find(filter).populate('tenantId', 'name slug status').sort({ createdAt: -1 });
+  if (query.status && query.status !== 'ALL') filter.status = query.status;
+  if (query.billingCycle && query.billingCycle !== 'ALL') filter.billingCycle = query.billingCycle;
+  return Subscription.find(filter).populate('tenantId', 'name slug status currency').sort({ createdAt: -1 }).lean();
+};
+
+const updateSubscriptionInDB = async (
+  id: string,
+  payload: {
+    planName?: string;
+    billingCycle?: 'MONTHLY' | 'YEARLY';
+    appliedCredits?: number;
+    price?: number;
+    creditMinor?: number;
+    discountBps?: number;
+  },
+) => {
+  const subscription = found(await Subscription.findById(id), 'Subscription');
+  if (payload.planName) subscription.planName = payload.planName;
+  if (payload.billingCycle) subscription.billingCycle = payload.billingCycle;
+  if (payload.price !== undefined) {
+    subscription.monthlyMinor = Math.round(payload.price * 100);
+  }
+  if (payload.appliedCredits !== undefined) {
+    subscription.creditBalanceMinor = Math.round(payload.appliedCredits * 100);
+  }
+  if (payload.creditMinor !== undefined) {
+    subscription.creditBalanceMinor = payload.creditMinor;
+  }
+  if (payload.discountBps !== undefined) {
+    subscription.discountBps = payload.discountBps;
+  }
+  subscription.cycleAmountMinor = cycleAmount(subscription.monthlyMinor, subscription.billingCycle, subscription.discountBps);
+  await subscription.save();
+  return subscription;
 };
 
 const getSubscriptionByTenantId = async (tenantId: string) => {
@@ -367,6 +399,7 @@ export const SubscriptionServices = {
   previewQuote,
   getAllSubscriptionsFromDB,
   getSubscriptionByTenantId,
+  updateSubscriptionInDB,
   updateSubscriptionStatusInDB,
   applyCreditDiscountInDB,
   changeBillingCycle,

@@ -17,7 +17,8 @@ const getAuditLogs = catchAsync(async (req: Request, res: Response) => {
     statusCode: httpStatus.OK,
     success: true,
     message: 'Audit logs retrieved successfully',
-    data: result,
+    meta: result.meta,
+    data: result.data,
   });
 });
 

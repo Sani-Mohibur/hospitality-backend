@@ -11,6 +11,11 @@ import { requestContext } from '../../utils/requestContext';
 import { found } from '../../utils/query';
 import { PlatformModule } from '../platformModule/platformModule.model';
 
+import { User } from '../user/user.model';
+import { Location } from '../location/location.model';
+import { USER_ROLE } from '../user/user.constant';
+import { escapeRegex } from '../../utils/query';
+
 // Super admin onboarding: same path as self-serve signup, owner gets an invite email.
 const createTenant = async (payload: TSignupPayload) => {
   const { owner, tenant } = await createTenantWithOwner(payload);
@@ -20,9 +25,36 @@ const createTenant = async (payload: TSignupPayload) => {
 
 const getAllTenants = async (query: Record<string, unknown> = {}) => {
   const filter: Record<string, unknown> = {};
-  if (query.status) filter.status = query.status;
-  const result = await Tenant.find(filter).sort({ createdAt: -1 });
-  return result;
+  if (query.status && query.status !== 'ALL') filter.status = query.status;
+  if (query.search) {
+    const term = escapeRegex(String(query.search));
+    filter.$or = [{ name: { $regex: term, $options: 'i' } }, { slug: { $regex: term, $options: 'i' } }];
+  }
+  const tenants = await Tenant.find(filter).sort({ createdAt: -1 }).lean();
+  const tenantIds = tenants.map((t) => t._id);
+
+  const [owners, locations] = await Promise.all([
+    User.find({ tenantId: { $in: tenantIds }, role: USER_ROLE.TENANT_OWNER }).select('name email phone tenantId').lean(),
+    Location.aggregate([
+      { $match: { tenantId: { $in: tenantIds }, isActive: true, isDeleted: { $ne: true } } },
+      { $group: { _id: '$tenantId', count: { $sum: 1 } } },
+    ]),
+  ]);
+
+  const ownerMap = new Map(owners.map((o) => [String(o.tenantId), o]));
+  const locMap = new Map(locations.map((l) => [String(l._id), l.count]));
+
+  return tenants.map((t) => {
+    const id = String(t._id);
+    const owner = ownerMap.get(id);
+    return {
+      ...t,
+      ownerName: owner?.name || 'Owner',
+      email: owner?.email || '',
+      phone: owner?.phone || '',
+      locationsCount: locMap.get(id) || 1,
+    };
+  });
 };
 
 const getTenantById = async (id: string) => {
@@ -30,14 +62,39 @@ const getTenantById = async (id: string) => {
   return result;
 };
 
-const updateTenant = async (id: string, payload: Partial<ITenant>) => {
+const updateTenant = async (id: string, payload: any) => {
+  const { modules, ownerName, email, phone, ...tenantFields } = payload;
+
+  if (modules && Array.isArray(modules)) {
+    await assertModulesExist(modules);
+    tenantFields.modules = modules;
+  }
+
   const result = found(
-    await Tenant.findByIdAndUpdate(id, payload, {
+    await Tenant.findByIdAndUpdate(id, tenantFields, {
       returnDocument: 'after',
       runValidators: true,
     }),
     'Tenant',
   );
+
+  if (modules) {
+    await SubscriptionServices.recalculate(id);
+  }
+
+  if (ownerName || email || phone) {
+    const ownerUpdate: Record<string, unknown> = {};
+    if (ownerName) ownerUpdate.name = ownerName;
+    if (email) ownerUpdate.email = email.toLowerCase().trim();
+    if (phone) ownerUpdate.phone = phone;
+
+    await User.findOneAndUpdate(
+      { tenantId: id, role: USER_ROLE.TENANT_OWNER },
+      ownerUpdate,
+      { returnDocument: 'after' },
+    );
+  }
+
   invalidateTenantCache(id);
   return result;
 };

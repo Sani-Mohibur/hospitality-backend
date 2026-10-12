@@ -9,6 +9,8 @@ import { Reservation } from '../hospitality/reservation/reservation.model';
 import { ActivityEvent } from '../auditLog/auditLog.model';
 import { requestContext } from '../../utils/requestContext';
 
+import { PlatformModule } from '../platformModule/platformModule.model';
+
 // Reseller / referral partner that brings tenants and earns a share of their billing.
 export interface IPartner {
   name: string;
@@ -29,27 +31,110 @@ const partnerSchema = new Schema<IPartner>(
 
 export const Partner = model<IPartner>('Partner', partnerSchema);
 
+export interface IPlatformSettings {
+  defaultCurrency: string;
+  sessionTimeout: string;
+  supportEmail: string;
+  maintenanceMode: boolean;
+  notifications: {
+    newTenants: boolean;
+    billingAlerts: boolean;
+    systemErrors: boolean;
+    marketingUpdates: boolean;
+    pushEnabled: boolean;
+  };
+}
+
+const platformSettingsSchema = new Schema<IPlatformSettings>(
+  {
+    defaultCurrency: { type: String, default: 'USD' },
+    sessionTimeout: { type: String, default: '60' },
+    supportEmail: { type: String, default: 'support@hospitalityos.com' },
+    maintenanceMode: { type: Boolean, default: false },
+    notifications: {
+      newTenants: { type: Boolean, default: true },
+      billingAlerts: { type: Boolean, default: true },
+      systemErrors: { type: Boolean, default: true },
+      marketingUpdates: { type: Boolean, default: false },
+      pushEnabled: { type: Boolean, default: true },
+    },
+  },
+  { timestamps: true },
+);
+
+export const PlatformSettings = model<IPlatformSettings>('PlatformSettings', platformSettingsSchema);
+
+const getPlatformSettings = async () =>
+  requestContext.asSystem(async () => {
+    let settings = await PlatformSettings.findOne().lean();
+    if (!settings) {
+      settings = (await PlatformSettings.create({})).toObject();
+    }
+    return settings;
+  });
+
+const updatePlatformSettings = async (payload: Partial<IPlatformSettings>) =>
+  requestContext.asSystem(async () => {
+    let settings = await PlatformSettings.findOne();
+    if (!settings) {
+      settings = await PlatformSettings.create(payload);
+    } else {
+      if (payload.defaultCurrency) settings.defaultCurrency = payload.defaultCurrency;
+      if (payload.sessionTimeout) settings.sessionTimeout = payload.sessionTimeout;
+      if (payload.supportEmail) settings.supportEmail = payload.supportEmail;
+      if (payload.maintenanceMode !== undefined) settings.maintenanceMode = payload.maintenanceMode;
+      if (payload.notifications) {
+        settings.notifications = { ...settings.notifications, ...payload.notifications };
+      }
+      await settings.save();
+    }
+    return settings;
+  });
+
 const getPlatformStats = async () =>
   requestContext.asSystem(async () => {
-    const [totalTenants, byStatus, subs, totalUsers, openInvoices] = await Promise.all([
+    const startOfToday = new Date();
+    startOfToday.setUTCHours(0, 0, 0, 0);
+
+    const [totalTenants, byStatus, subs, totalUsers, openInvoices, activeModules, newToday, paidInvoices] = await Promise.all([
       Tenant.countDocuments(),
       Tenant.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
       Subscription.find({ status: { $in: ['ACTIVE', 'PAST_DUE', 'TRIALING'] } }).lean(),
       User.countDocuments(),
       PlatformInvoice.aggregate([{ $match: { status: 'OPEN' } }, { $group: { _id: null, count: { $sum: 1 }, amountMinor: { $sum: '$totalMinor' } } }]),
+      PlatformModule.countDocuments({ isActive: true }),
+      Tenant.countDocuments({ createdAt: { $gte: startOfToday } }),
+      PlatformInvoice.aggregate([
+        { $match: { status: 'PAID', paidAt: { $exists: true } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m', date: '$paidAt' } },
+            totalMinor: { $sum: '$totalMinor' },
+          },
+        },
+        { $sort: { _id: 1 } },
+        { $limit: 12 },
+      ]),
     ]);
     const paying = subs.filter((s) => s.status !== 'TRIALING');
     // MRR normalises yearly plans to a month.
     const mrr = paying.reduce((acc, s) => acc + (s.billingCycle === 'YEARLY' ? Math.round(s.cycleAmountMinor / 12) : s.cycleAmountMinor), 0);
     return {
-      tenants: { total: totalTenants, byStatus },
+      tenants: { total: totalTenants, byStatus, newToday },
+      modules: { active: activeModules },
       subscriptions: {
+        total: subs.length,
         paying: paying.length,
         trialing: subs.filter((s) => s.status === 'TRIALING').length,
         pastDue: subs.filter((s) => s.status === 'PAST_DUE').length,
       },
       users: { total: totalUsers },
-      financials: { mrrMinor: mrr, arrMinor: mrr * 12, openInvoices: openInvoices[0] || { count: 0, amountMinor: 0 } },
+      financials: {
+        mrrMinor: mrr,
+        arrMinor: mrr * 12,
+        openInvoices: openInvoices[0] || { count: 0, amountMinor: 0 },
+        revenueHistory: paidInvoices.map((p) => ({ month: p._id, totalMinor: p.totalMinor })),
+      },
     };
   });
 
@@ -105,4 +190,11 @@ const partnerCommissions = async (partnerId: string, from: Date, to: Date) =>
     return { partner: partner.name, tenants: tenants.length, paidInvoices: invoices.length, revenueMinor: revenue, commissionMinor: Math.round((revenue * partner.commissionBps) / 10000) };
   });
 
-export const SuperAdminServices = { getPlatformStats, tenantHealth, impersonationLog, partnerCommissions };
+export const SuperAdminServices = {
+  getPlatformStats,
+  tenantHealth,
+  impersonationLog,
+  partnerCommissions,
+  getPlatformSettings,
+  updatePlatformSettings,
+};

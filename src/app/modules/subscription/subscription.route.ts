@@ -64,6 +64,12 @@ router.post(
 router.get('/', auth(USER_ROLE.SUPER_ADMIN), catchAsync(async (req, res) => ok(res, 'Subscriptions retrieved successfully', await SubscriptionServices.getAllSubscriptionsFromDB(req.query))));
 
 router.patch(
+  '/:id',
+  auth(USER_ROLE.SUPER_ADMIN),
+  catchAsync(async (req, res) => ok(res, 'Subscription updated successfully', await SubscriptionServices.updateSubscriptionInDB(req.params.id as string, req.body))),
+);
+
+router.patch(
   '/:id/status',
   auth(USER_ROLE.SUPER_ADMIN),
   validateRequest(body({ status: z.enum(['TRIALING', 'ACTIVE', 'PAST_DUE', 'CANCELLED']) })),

@@ -46,4 +46,7 @@ router.get(
   ),
 );
 
+router.get('/settings', catchAsync(async (_req, res) => ok(res, 'Platform settings retrieved', await SuperAdminServices.getPlatformSettings())));
+router.patch('/settings', catchAsync(async (req, res) => ok(res, 'Platform settings updated', await SuperAdminServices.updatePlatformSettings(req.body))));
+
 export const SuperAdminRoutes = router;

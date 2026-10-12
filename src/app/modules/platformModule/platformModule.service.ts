@@ -2,6 +2,7 @@ import httpStatus from 'http-status';
 import AppError from '../../errors/AppError';
 import { IPlatformModule } from './platformModule.interface';
 import { PlatformModule } from './platformModule.model';
+import { Tenant } from '../tenant/tenant.model';
 
 const createPlatformModuleIntoDB = async (payload: IPlatformModule) => {
   const result = await PlatformModule.create(payload);
@@ -9,8 +10,19 @@ const createPlatformModuleIntoDB = async (payload: IPlatformModule) => {
 };
 
 const getAllPlatformModulesFromDB = async () => {
-  const result = await PlatformModule.find();
-  return result;
+  const [modules, tenantCounts] = await Promise.all([
+    PlatformModule.find().sort({ createdAt: 1 }).lean(),
+    Tenant.aggregate([
+      { $match: { isDeleted: false, status: { $ne: 'CANCELLED' } } },
+      { $unwind: '$modules' },
+      { $group: { _id: '$modules', count: { $sum: 1 } } },
+    ]),
+  ]);
+  const countMap = new Map(tenantCounts.map((r) => [r._id, r.count]));
+  return modules.map((m) => ({
+    ...m,
+    activeSubscribers: countMap.get(m.code) || 0,
+  }));
 };
 
 const updatePlatformModuleIntoDB = async (

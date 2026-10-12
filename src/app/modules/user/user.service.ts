@@ -273,6 +273,23 @@ const removeStaff = async (req: Request, id: string) => {
   return user;
 };
 
+const ensureSuperAdmin = async () => {
+  const adminEmail = (config.email.admin || 'admin@hospitality.com').toLowerCase();
+  const existing = await User.findOne({ role: USER_ROLE.SUPER_ADMIN });
+  if (!existing) {
+    const password = 'Password123!';
+    await User.create({
+      name: 'Super Admin',
+      email: adminEmail,
+      password,
+      role: USER_ROLE.SUPER_ADMIN,
+      allLocations: true,
+      isActive: true,
+    });
+    logger.info(`Super Admin user initialized: ${adminEmail}`);
+  }
+};
+
 export const UserServices = {
   getProfile,
   updateProfile,
@@ -286,4 +303,5 @@ export const UserServices = {
   setPin,
   removeStaff,
   sendInvite,
+  ensureSuperAdmin,
 };

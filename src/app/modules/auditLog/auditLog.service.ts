@@ -62,20 +62,45 @@ const getAuditLogs = async (query: Record<string, unknown>) => {
   const filter: Record<string, unknown> = {};
   if (query.tenantId) filter.tenantId = query.tenantId;
   if (query.user) filter.user = query.user;
-  if (query.entity) filter.entity = query.entity;
-  if (query.action) filter.action = query.action;
+  if (query.entity && query.entity !== 'ALL') {
+    filter.entity = { $regex: new RegExp(`^${escapeRegex(String(query.entity))}$`, 'i') };
+  }
+  if (query.action && query.action !== 'ALL') {
+    filter.action = { $regex: new RegExp(`^${escapeRegex(String(query.action))}$`, 'i') };
+  }
+  if (query.search) {
+    const term = escapeRegex(String(query.search));
+    filter.$or = [
+      { action: { $regex: term, $options: 'i' } },
+      { entity: { $regex: term, $options: 'i' } },
+      { ipAddress: { $regex: term, $options: 'i' } },
+      { 'details.url': { $regex: term, $options: 'i' } },
+    ];
+  }
 
   const page = Math.max(Number(query.page) || 1, 1);
   const limit = Math.min(Math.max(Number(query.limit) || 50, 1), 200);
 
-  const result = await AuditLog.find(filter)
-    .populate('user', 'name email')
-    .populate('tenantId', 'name')
-    .sort({ createdAt: -1 })
-    .skip((page - 1) * limit)
-    .limit(limit);
+  const [data, total] = await Promise.all([
+    AuditLog.find(filter)
+      .populate('user', 'name email role')
+      .populate('tenantId', 'name')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean(),
+    AuditLog.countDocuments(filter),
+  ]);
 
-  return result;
+  return {
+    data,
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+  };
 };
 
 const getActivity = async (query: Record<string, unknown>) => {

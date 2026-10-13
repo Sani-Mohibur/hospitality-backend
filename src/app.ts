@@ -12,8 +12,8 @@ import config from './app/config';
 import notFound from './app/middlewares/notFound';
 import router from './app/routes';
 import { requestContext } from './app/utils/requestContext';
+import { isOriginAllowed } from './app/utils/corsOrigins';
 import { stripeWebhookHandler } from './app/modules/payment/payment.route';
-import { timeStamp } from 'console';
 
 const app: Application = express();
 
@@ -43,7 +43,18 @@ const limiter = rateLimit({
 app.use('/api/v1', limiter);
 
 // 3. Essential Middlewares
-app.use(cors({ origin: config.urls.frontend || 'http://localhost:3000', credentials: true }));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
+    credentials: true,
+  }),
+);
 app.use(cookieParser());
 // Raw bytes are kept for webhook signature verification (Stripe, partners).
 app.use(
@@ -68,7 +79,11 @@ app.get('/', (req: Request, res: Response) => {
     message: 'API is running successfully',
     version: '2.0.0',
     environment: config.env,
-    timeStamp: new Date().toISOString(),
+    timeStamp: `${new Date().toLocaleString('en-US', {
+      timeZone: 'UTC',
+      dateStyle: 'medium',
+      timeStyle: 'medium',
+    })} UTC+0`,
   });
 });
 

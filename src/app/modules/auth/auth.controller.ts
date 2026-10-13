@@ -7,14 +7,16 @@ import httpStatus from 'http-status';
 
 const REFRESH_COOKIE = 'refreshToken';
 
+const isProduction = config.env === 'production' || process.env.NODE_ENV === 'production';
+
 const clientMeta = (req: Request) => ({ ip: req.ip, userAgent: req.headers['user-agent'] });
 
 const setRefreshCookie = (res: Response, token?: string) => {
   if (!token) return;
   res.cookie(REFRESH_COOKIE, token, {
-    secure: config.env === 'production',
+    secure: isProduction,
     httpOnly: true,
-    sameSite: 'strict',
+    sameSite: isProduction ? 'none' : 'lax',
     path: '/api/v1/auth',
     maxAge: 30 * 24 * 60 * 60 * 1000,
   });
@@ -136,9 +138,9 @@ const changePassword = catchAsync(async (req: Request, res: Response) => {
 const logoutUser = catchAsync(async (req: Request, res: Response) => {
   await AuthServices.logout(req.cookies[REFRESH_COOKIE]);
   res.clearCookie(REFRESH_COOKIE, {
-    secure: config.env === 'production',
+    secure: isProduction,
     httpOnly: true,
-    sameSite: 'strict',
+    sameSite: isProduction ? 'none' : 'lax',
     path: '/api/v1/auth',
   });
 

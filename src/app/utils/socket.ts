@@ -2,6 +2,7 @@ import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import config from '../config';
 import logger from './logger';
+import { isOriginAllowed } from './corsOrigins';
 
 type TSocketUser = {
   id: string;
@@ -36,7 +37,13 @@ class SocketManager {
   public init(server: HttpServer, authorizer: TSocketAuthorizer): void {
     this.io = new Server(server, {
       cors: {
-        origin: config.urls.frontend || 'http://localhost:3000',
+        origin: (origin, callback) => {
+          if (isOriginAllowed(origin)) {
+            callback(null, true);
+          } else {
+            callback(new Error('Not allowed by CORS'));
+          }
+        },
         credentials: true,
       },
     });

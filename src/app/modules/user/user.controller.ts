@@ -17,7 +17,7 @@ const getProfile = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const updateProfile = catchAsync(async (req, res) => {
+const updateProfile = catchAsync(async (req: Request, res: Response) => {
   let userData = { ...req.body };
   if (req.body.data) {
     try {
@@ -37,7 +37,7 @@ const updateProfile = catchAsync(async (req, res) => {
   });
 });
 
-const getAllUsers = catchAsync(async (req, res) => {
+const getAllUsers = catchAsync(async (req: Request, res: Response) => {
   const filters = pick(req.query, ['searchTerm', 'role', 'name', 'email']);
   const paginationOptions = pick(req.query, [
     'page',
@@ -60,7 +60,7 @@ const getAllUsers = catchAsync(async (req, res) => {
   });
 });
 
-const getSingleUser = catchAsync(async (req, res) => {
+const getSingleUser = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   const result = await UserServices.getSingleUser(id as string);
 
@@ -72,7 +72,7 @@ const getSingleUser = catchAsync(async (req, res) => {
   });
 });
 
-const deleteUser = catchAsync(async (req, res) => {
+const deleteUser = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   await UserServices.deleteUser(id as string);
 
@@ -84,42 +84,42 @@ const deleteUser = catchAsync(async (req, res) => {
   });
 });
 
-const createStaff = catchAsync(async (req, res) => {
+const createStaff = catchAsync(async (req: Request, res: Response) => {
   const result = await UserServices.createStaff(req, req.body);
   sendResponse(res, { statusCode: httpStatus.CREATED, success: true, message: 'Staff member created', data: result });
 });
 
-const listStaff = catchAsync(async (req, res) => {
+const listStaff = catchAsync(async (req: Request, res: Response) => {
   const result = await UserServices.listStaff(req.query);
   sendResponse(res, { statusCode: httpStatus.OK, success: true, message: 'Staff retrieved', meta: result.meta, data: result.data });
 });
 
-const getStaff = catchAsync(async (req, res) => {
+const getStaff = catchAsync(async (req: Request, res: Response) => {
   const result = await UserServices.getStaff(req.params.id as string);
   sendResponse(res, { statusCode: httpStatus.OK, success: true, message: 'Staff member retrieved', data: result });
 });
 
-const updateStaff = catchAsync(async (req, res) => {
+const updateStaff = catchAsync(async (req: Request, res: Response) => {
   const result = await UserServices.updateStaff(req, req.params.id as string, req.body);
   sendResponse(res, { statusCode: httpStatus.OK, success: true, message: 'Staff member updated', data: result });
 });
 
-const setPin = catchAsync(async (req, res) => {
+const setPin = catchAsync(async (req: Request, res: Response) => {
   const result = await UserServices.setPin(req.params.id as string, req.body.pin);
   sendResponse(res, { statusCode: httpStatus.OK, success: true, message: 'PIN updated', data: result });
 });
 
-const setMyPin = catchAsync(async (req, res) => {
+const setMyPin = catchAsync(async (req: Request, res: Response) => {
   const result = await UserServices.setPin(req.user.id, req.body.pin);
   sendResponse(res, { statusCode: httpStatus.OK, success: true, message: 'PIN updated', data: result });
 });
 
-const removeStaff = catchAsync(async (req, res) => {
+const removeStaff = catchAsync(async (req: Request, res: Response) => {
   await UserServices.removeStaff(req, req.params.id as string);
   sendResponse(res, { statusCode: httpStatus.OK, success: true, message: 'Staff member removed', data: null });
 });
 
-const resendInvite = catchAsync(async (req, res) => {
+const resendInvite = catchAsync(async (req: Request, res: Response) => {
   const user = await UserServices.getStaff(req.params.id as string);
   await UserServices.sendInvite(user);
   sendResponse(res, { statusCode: httpStatus.OK, success: true, message: 'Invite sent', data: null });

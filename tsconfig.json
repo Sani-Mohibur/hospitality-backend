@@ -7,10 +7,6 @@
     // File Layout
     "rootDir": "./src",
     "outDir": "./dist",
-
-    // Type Declarations
-    "types": ["node"],
-
     // Source Maps & Declarations
     "sourceMap": true,
     "declaration": true,

@@ -1,7 +1,7 @@
 import httpStatus from 'http-status';
 import AppError from '../../errors/AppError';
 import { IPlatformModule } from './platformModule.interface';
-import { PlatformModule } from './platformModule.model';
+import { PlatformModule, DEFAULT_PLATFORM_MODULES } from './platformModule.model';
 import { Tenant } from '../tenant/tenant.model';
 
 const createPlatformModuleIntoDB = async (payload: IPlatformModule) => {

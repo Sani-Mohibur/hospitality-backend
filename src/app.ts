@@ -13,6 +13,7 @@ import notFound from './app/middlewares/notFound';
 import router from './app/routes';
 import { requestContext } from './app/utils/requestContext';
 import { stripeWebhookHandler } from './app/modules/payment/payment.route';
+import { timeStamp } from 'console';
 
 const app: Application = express();
 
@@ -67,6 +68,7 @@ app.get('/', (req: Request, res: Response) => {
     message: 'API is running successfully',
     version: '2.0.0',
     environment: config.env,
+    timeStamp: new Date().toISOString(),
   });
 });
 

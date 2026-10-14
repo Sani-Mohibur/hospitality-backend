@@ -76,7 +76,7 @@ export const createTenantWithOwner = async (payload: TSignupPayload) => {
   if (await requestContext.asSystem(() => User.exists({ email }))) {
     throw new AppError(httpStatus.CONFLICT, 'An account with this email already exists');
   }
-  const modules = payload.modules?.length ? payload.modules : ['HOSPITALITY', 'RESTAURANT'];
+  const modules = Array.isArray(payload.modules) ? payload.modules : [];
   const timezone = payload.timezone || 'UTC';
 
   const { owner, tenant } = await requestContext.asSystem(() =>
@@ -126,9 +126,11 @@ export const createTenantWithOwner = async (payload: TSignupPayload) => {
             locationIds: [location!._id],
           },
         ]);
-        const subscription = await SubscriptionServices.startTrial(tenantId, modules);
-        tenant!.subscriptionId = subscription._id;
-        await tenant!.save();
+        if (modules.length > 0) {
+          const subscription = await SubscriptionServices.startTrial(tenantId, modules);
+          tenant!.subscriptionId = subscription._id;
+          await tenant!.save();
+        }
         return { owner: owner!, tenant: tenant! };
       });
     }),

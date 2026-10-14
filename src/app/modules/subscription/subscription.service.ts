@@ -9,7 +9,7 @@ import { IPlatformModule } from '../platformModule/platformModule.interface';
 import { Tenant } from '../tenant/tenant.model';
 import { TENANT_STATUS } from '../tenant/tenant.interface';
 import { Room } from '../hospitality/room/room.model';
-import { Outlet } from '../outlet/outlet.model';
+import { Outlet, Station } from '../outlet/outlet.model';
 import { Location } from '../location/location.model';
 import { User } from '../user/user.model';
 import { nextSequence } from '../system/counter.model';
@@ -391,10 +391,160 @@ const runBillingCycle = async (now = new Date()) =>
     return { billed: due.length, overdue: overdue.length };
   });
 
+const subscribeTenant = async (
+  tenantId: string,
+  payload: {
+    packageId?: string;
+    tierId?: string;
+    billingCycle?: 'MONTHLY' | 'YEARLY';
+    modules: string[];
+    planName?: string;
+    mockPaymentSuccess: boolean;
+    paymentRef?: string;
+  },
+) => {
+  if (!payload.mockPaymentSuccess) {
+    throw new AppError(httpStatus.PAYMENT_REQUIRED, 'Payment authorization failed. Modules were not activated.');
+  }
+
+  const validModules = (payload.modules || []).filter((m) =>
+    ['HOSPITALITY', 'RESTAURANT', 'INVENTORY', 'DISTRIBUTION', 'AI_ASSISTANT'].includes(m),
+  );
+  if (!validModules.length) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'At least one valid platform module must be selected.');
+  }
+
+  const cycle = payload.billingCycle || 'MONTHLY';
+  const planName =
+    payload.planName ||
+    (validModules.includes('HOSPITALITY') && validModules.includes('RESTAURANT')
+      ? 'Hotel + Restaurant Suite'
+      : validModules.includes('HOSPITALITY')
+        ? 'Hotel Management'
+        : 'Restaurant Management');
+
+  return requestContext.asSystem(async () => {
+    return runInTransaction(async () => {
+      const tenant = found(await Tenant.findById(tenantId), 'Tenant');
+
+      // Update tenant modules and status
+      tenant.modules = validModules;
+      tenant.status = TENANT_STATUS.ACTIVE;
+      if (!tenant.trialEndsAt) {
+        tenant.trialEndsAt = new Date(Date.now() + config.billing.trial_days * DAY);
+      }
+
+      // Ensure location supports rooms if HOSPITALITY is selected
+      if (validModules.includes('HOSPITALITY')) {
+        await Location.updateOne({ tenantId, isDeleted: { $ne: true } }, { hasRooms: true });
+      }
+
+      // Ensure outlet exists if RESTAURANT is selected
+      if (validModules.includes('RESTAURANT')) {
+        const outletExists = await Outlet.exists({ tenantId });
+        if (!outletExists) {
+          const location = await Location.findOne({ tenantId });
+          if (location) {
+            const [outlet] = await Outlet.create([{ tenantId, locationId: location._id, name: 'Main Restaurant' }]);
+            const [station] = await Station.create([
+              { tenantId, locationId: location._id, outletId: outlet!._id, name: 'Kitchen', type: 'KITCHEN' },
+            ]);
+            outlet!.defaultStationId = station!._id;
+            await outlet!.save();
+          }
+        }
+      }
+
+      // Calculate quote and subscription details
+      const q = await quote(tenantId, validModules);
+      const now = new Date();
+      const periodEnd = addMonths(now, cycle === 'YEARLY' ? 12 : 1);
+      const gross = cycle === 'YEARLY' ? q.monthlyMinor * 10 : q.monthlyMinor;
+
+      let subscription = await Subscription.findOne({ tenantId });
+      if (subscription) {
+        subscription.planName = planName;
+        subscription.billingCycle = cycle;
+        subscription.status = SUBSCRIPTION_STATUS.ACTIVE;
+        subscription.features = validModules;
+        subscription.items = q.items;
+        subscription.monthlyMinor = q.monthlyMinor;
+        subscription.cycleAmountMinor = gross;
+        subscription.currentPeriodStart = now;
+        subscription.currentPeriodEnd = periodEnd;
+        subscription.nextBillingDate = periodEnd;
+        subscription.lastRecalculatedAt = now;
+        await subscription.save();
+      } else {
+        const [newSub] = await Subscription.create([
+          {
+            tenantId,
+            planName,
+            billingCycle: cycle,
+            status: SUBSCRIPTION_STATUS.ACTIVE,
+            features: validModules,
+            items: q.items,
+            monthlyMinor: q.monthlyMinor,
+            cycleAmountMinor: gross,
+            currentPeriodStart: now,
+            currentPeriodEnd: periodEnd,
+            nextBillingDate: periodEnd,
+            lastRecalculatedAt: now,
+          },
+        ]);
+        if (!newSub) {
+          throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to create subscription record');
+        }
+        subscription = newSub;
+        tenant.subscriptionId = newSub._id;
+      }
+
+      if (!subscription) {
+        throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, 'Subscription record is missing');
+      }
+
+      await tenant.save();
+      invalidateTenantCache(tenantId);
+
+      // Create a paid platform invoice for the subscription
+      const seq = await nextSequence('platform-invoice');
+      await PlatformInvoice.create([
+        {
+          tenantId,
+          subscriptionId: subscription._id,
+          number: `HPOS-${now.getUTCFullYear()}-${String(seq).padStart(6, '0')}`,
+          periodStart: now,
+          periodEnd,
+          lines: q.items,
+          subtotalMinor: gross,
+          discountMinor: 0,
+          creditAppliedMinor: 0,
+          totalMinor: gross,
+          status: 'PAID',
+          paidAt: now,
+          paymentRef: payload.paymentRef || `MOCK_PAY_${Date.now()}`,
+          dueDate: now,
+        },
+      ]);
+
+      return {
+        tenant: {
+          id: tenant._id,
+          name: tenant.name,
+          status: tenant.status,
+          subscribedModules: tenant.modules,
+        },
+        subscription,
+      };
+    });
+  });
+};
+
 const tenantIdOf = (value: unknown) => new Types.ObjectId(String(value));
 
 export const SubscriptionServices = {
   startTrial,
+  subscribeTenant,
   recalculate,
   previewQuote,
   getAllSubscriptionsFromDB,

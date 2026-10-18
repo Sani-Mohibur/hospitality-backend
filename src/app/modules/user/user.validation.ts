@@ -6,10 +6,10 @@ const pin = z.string().regex(/^\d{4,6}$/, 'PIN must be 4-6 digits');
 const createStaffValidationSchema = z.object({
   body: z.object({
     name: z.string().min(1, 'Name is required'),
-    email: z.string().email('Invalid email address').optional(),
+    email: z.string().email('Invalid email address'),
     phone: z.string().optional(),
-    password: z.string().min(8, 'Password must be at least 8 characters').optional(),
-    role: z.enum(['TENANT_MANAGER', 'STAFF']).optional(),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    role: z.enum(['TENANT_MANAGER', 'STAFF']).default('STAFF'),
     roleId: objectId.optional(),
     locationIds: z.array(objectId).optional(),
     allLocations: z.boolean().optional(),

@@ -125,6 +125,20 @@ const resendInvite = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, { statusCode: httpStatus.OK, success: true, message: 'Invite sent', data: null });
 });
 
+const checkEmail = catchAsync(async (req: Request, res: Response) => {
+  const email = String(req.query.email || '').toLowerCase().trim();
+  if (!email) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Email parameter is required');
+  }
+  const exists = await UserServices.isEmailTaken(email);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: exists ? 'Email is already registered' : 'Email is available',
+    data: { exists },
+  });
+});
+
 export const UserControllers = {
   getProfile,
   updateProfile,
@@ -139,4 +153,5 @@ export const UserControllers = {
   setMyPin,
   removeStaff,
   resendInvite,
+  checkEmail,
 };

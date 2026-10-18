@@ -12,7 +12,7 @@ import { Role } from '../modules/role/role.model';
 import { Tenant } from '../modules/tenant/tenant.model';
 import { Session } from '../modules/auth/session.model';
 import { Device } from '../modules/device/device.model';
-import { ALL_PERMISSIONS, MANAGER_PERMISSIONS, USER_ROLE } from '../modules/user/user.constant';
+import { ALL_PERMISSIONS, MANAGER_PERMISSIONS, PERMISSION, USER_ROLE } from '../modules/user/user.constant';
 import { TENANT_STATUS } from '../modules/tenant/tenant.interface';
 
 export type TAuthUser = {
@@ -55,9 +55,22 @@ export const resolvePermissions = async (user: {
 }): Promise<string[]> => {
   if (user.role === USER_ROLE.SUPER_ADMIN || user.role === USER_ROLE.TENANT_OWNER) return ALL_PERMISSIONS;
   if (user.role === USER_ROLE.TENANT_MANAGER) return MANAGER_PERMISSIONS;
-  if (!user.roleId) return [];
-  const role = await requestContext.asSystem(() => Role.findById(user.roleId).lean());
-  return role?.permissions || [];
+  if (user.roleId) {
+    const role = await requestContext.asSystem(() => Role.findById(user.roleId).lean());
+    if (role?.permissions?.length) return role.permissions;
+  }
+  if (user.role === USER_ROLE.STAFF) {
+    return ALL_PERMISSIONS.filter(
+      (p) =>
+        p !== PERMISSION.BILLING_MANAGE &&
+        p !== PERMISSION.TENANT_SETTINGS &&
+        p !== PERMISSION.STAFF_MANAGE &&
+        p !== PERMISSION.ROLES_MANAGE &&
+        p !== PERMISSION.INTEGRATIONS_MANAGE &&
+        p !== PERMISSION.DEVICES_MANAGE,
+    );
+  }
+  return [];
 };
 
 export const authenticate = async (req: Request): Promise<TAuthUser> => {

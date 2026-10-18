@@ -17,6 +17,8 @@ router.patch(
 );
 router.patch('/me/pin', tenantUser(), validateRequest(UserValidation.setPinValidationSchema), UserControllers.setMyPin);
 
+router.get('/check-email', tenantUser(), UserControllers.checkEmail);
+
 // Tenant staff management
 router.get('/staff', tenantUser(), authorize(PERMISSION.STAFF_MANAGE), UserControllers.listStaff);
 router.post(

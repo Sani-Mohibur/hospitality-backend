@@ -171,28 +171,42 @@ const sendInvite = async (user: { _id: unknown; email?: string; name: string; to
   );
 };
 
+const isEmailTaken = async (email: string) => {
+  const normalized = email.toLowerCase().trim();
+  const exists = await requestContext.asSystem(() => User.exists({ email: normalized }));
+  return Boolean(exists);
+};
+
 const createStaff = async (req: Request, payload: TStaffPayload) => {
   const role = payload.role || USER_ROLE.STAFF;
   assertCanAssignRole(req, role);
-  if (role === USER_ROLE.STAFF && !payload.roleId) throw new AppError(httpStatus.BAD_REQUEST, 'Staff need a roleId');
-  if (!payload.email && !payload.pin) throw new AppError(httpStatus.BAD_REQUEST, 'Give an email or a PIN');
+  if (!payload.email) throw new AppError(httpStatus.BAD_REQUEST, 'Email address is required');
   await validateGrants(payload);
-  if (payload.email && (await requestContext.asSystem(() => User.exists({ email: payload.email!.toLowerCase() })))) {
-    throw new AppError(httpStatus.CONFLICT, 'Email is already in use');
+
+  const emailExists = await isEmailTaken(payload.email);
+  if (emailExists) {
+    throw new AppError(httpStatus.CONFLICT, 'A user with this email address already exists');
   }
 
   const user = await User.create({
-    name: payload.name,
-    email: payload.email,
-    phone: payload.phone,
+    name: payload.name.trim(),
+    email: payload.email ? payload.email.toLowerCase().trim() : undefined,
+    phone: payload.phone?.trim() || undefined,
     password: payload.password,
     role,
-    roleId: payload.roleId,
-    locationIds: payload.locationIds || [],
+    tenantId: req.user.tenantId ? new Types.ObjectId(req.user.tenantId) : undefined,
+    roleId: role === USER_ROLE.STAFF && payload.roleId ? new Types.ObjectId(payload.roleId) : undefined,
+    locationIds: payload.locationIds?.map((l) => new Types.ObjectId(l)) || [],
     allLocations: Boolean(payload.allLocations),
     pinHash: payload.pin ? await hashPin(payload.pin) : undefined,
+    isActive: true,
   });
-  if (payload.email && !payload.password && payload.sendInvite !== false) await sendInvite(user);
+
+  // Direct addition: Only send invite if explicitly requested (default is no invite)
+  if (payload.sendInvite === true && payload.email && !payload.password) {
+    await sendInvite(user);
+  }
+
   await activity.record({ action: 'STAFF_CREATED', entity: 'User', entityId: user._id, message: `Added ${user.name} (${role})` });
   return user;
 };
@@ -303,5 +317,6 @@ export const UserServices = {
   setPin,
   removeStaff,
   sendInvite,
+  isEmailTaken,
   ensureSuperAdmin,
 };

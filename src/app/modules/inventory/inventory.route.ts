@@ -3,7 +3,6 @@ import { z } from 'zod';
 import httpStatus from 'http-status';
 import { authorize, tenantUser } from '../../middlewares/auth';
 import locationScope, { locationFilter, requireLocationId } from '../../middlewares/locationScope';
-import requireModule from '../../middlewares/requireModule';
 import validateRequest from '../../middlewares/validateRequest';
 import catchAsync from '../../utils/catchAsync';
 import { ok } from '../../utils/sendResponse';
@@ -30,7 +29,7 @@ const itemFields = z.object({
   isActive: z.boolean().optional(),
 });
 
-router.use(tenantUser(), requireModule('INVENTORY'));
+router.use(tenantUser());
 
 router.get(
   '/',

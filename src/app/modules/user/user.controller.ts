@@ -90,12 +90,12 @@ const createStaff = catchAsync(async (req: Request, res: Response) => {
 });
 
 const listStaff = catchAsync(async (req: Request, res: Response) => {
-  const result = await UserServices.listStaff(req.query);
+  const result = await UserServices.listStaff(req, req.query);
   sendResponse(res, { statusCode: httpStatus.OK, success: true, message: 'Staff retrieved', meta: result.meta, data: result.data });
 });
 
 const getStaff = catchAsync(async (req: Request, res: Response) => {
-  const result = await UserServices.getStaff(req.params.id as string);
+  const result = await UserServices.getStaff(req, req.params.id as string);
   sendResponse(res, { statusCode: httpStatus.OK, success: true, message: 'Staff member retrieved', data: result });
 });
 
@@ -120,7 +120,7 @@ const removeStaff = catchAsync(async (req: Request, res: Response) => {
 });
 
 const resendInvite = catchAsync(async (req: Request, res: Response) => {
-  const user = await UserServices.getStaff(req.params.id as string);
+  const user = await UserServices.getStaff(req, req.params.id as string);
   await UserServices.sendInvite(user);
   sendResponse(res, { statusCode: httpStatus.OK, success: true, message: 'Invite sent', data: null });
 });

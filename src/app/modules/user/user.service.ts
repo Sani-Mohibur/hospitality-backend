@@ -19,6 +19,7 @@ import { revokeAllSessions, signPurposeToken } from '../auth/token.service';
 import { sendEmail } from '../../utils/sendEmail';
 import { requestContext } from '../../utils/requestContext';
 import { escapeRegex, found, metaOf, paginationOf } from '../../utils/query';
+import { canAccessLocation } from '../../middlewares/locationScope';
 import logger from '../../utils/logger';
 
 const getProfile = async (userId: string) => {
@@ -80,8 +81,10 @@ const updateProfile = async (
       runValidators: true,
     });
 
-    if (file && isUserExist.profileImage?.publicId)
-      await fileDeleter.deleteFromCloudinary(isUserExist.profileImage.publicId);
+    const oldPublicId = isUserExist.profileImage?.publicId;
+    if (file && oldPublicId) {
+      await fileDeleter.deleteFromCloudinary(oldPublicId);
+    }
 
     return result;
   });
@@ -183,6 +186,38 @@ const createStaff = async (req: Request, payload: TStaffPayload) => {
   if (!payload.email) throw new AppError(httpStatus.BAD_REQUEST, 'Email address is required');
   await validateGrants(payload);
 
+  let allLocations = Boolean(payload.allLocations);
+  let locationIds = payload.locationIds || [];
+
+  if (req.user.role === USER_ROLE.TENANT_MANAGER) {
+    if (allLocations) {
+      throw new AppError(httpStatus.FORBIDDEN, 'Managers cannot assign staff to all locations');
+    }
+    // If no locations specified, default to currently selected location or manager's authorized location
+    if (!locationIds.length) {
+      if (req.locationId && canAccessLocation(req, req.locationId)) {
+        locationIds = [req.locationId];
+      } else {
+        const firstLocation = req.user.locationIds?.[0];
+        if (firstLocation) {
+          locationIds = [firstLocation];
+        } else {
+          throw new AppError(httpStatus.FORBIDDEN, 'No authorized location available to assign staff');
+        }
+      }
+    }
+    for (const locId of locationIds) {
+      if (!canAccessLocation(req, locId)) {
+        throw new AppError(httpStatus.FORBIDDEN, 'You cannot assign staff to locations outside your access scope');
+      }
+    }
+  } else if (req.user.role === USER_ROLE.TENANT_OWNER || req.user.role === USER_ROLE.SUPER_ADMIN) {
+    // Owner adding staff: default to current dashboard location if not allLocations and no locations provided
+    if (!allLocations && !locationIds.length && req.locationId) {
+      locationIds = [req.locationId];
+    }
+  }
+
   const emailExists = await isEmailTaken(payload.email);
   if (emailExists) {
     throw new AppError(httpStatus.CONFLICT, 'A user with this email address already exists');
@@ -196,8 +231,8 @@ const createStaff = async (req: Request, payload: TStaffPayload) => {
     role,
     tenantId: req.user.tenantId ? new Types.ObjectId(req.user.tenantId) : undefined,
     roleId: role === USER_ROLE.STAFF && payload.roleId ? new Types.ObjectId(payload.roleId) : undefined,
-    locationIds: payload.locationIds?.map((l) => new Types.ObjectId(l)) || [],
-    allLocations: Boolean(payload.allLocations),
+    locationIds: locationIds.map((l) => new Types.ObjectId(l)),
+    allLocations,
     pinHash: payload.pin ? await hashPin(payload.pin) : undefined,
     isActive: true,
   });
@@ -211,12 +246,24 @@ const createStaff = async (req: Request, payload: TStaffPayload) => {
   return user;
 };
 
-const listStaff = async (query: Record<string, unknown>) => {
+const listStaff = async (req: Request, query: Record<string, unknown>) => {
   const { page, limit, skip } = paginationOf(query, 50);
   const filter: Record<string, unknown> = {};
   if (query.role) filter.role = query.role;
   if (query.roleId) filter.roleId = query.roleId;
-  if (query.locationId) filter.$or = [{ locationIds: new Types.ObjectId(String(query.locationId)) }, { allLocations: true }];
+
+  const queryLocationId = typeof query.locationId === 'string' ? query.locationId : undefined;
+  const effectiveLocationId = req.locationId || queryLocationId;
+  if (effectiveLocationId) {
+    if (!canAccessLocation(req, effectiveLocationId)) {
+      throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to this location');
+    }
+    filter.$or = [{ locationIds: new Types.ObjectId(effectiveLocationId) }, { allLocations: true }];
+  } else if (!req.user.allLocations) {
+    const accessibleOids = (req.user.locationIds || []).map((id) => new Types.ObjectId(id));
+    filter.$or = [{ locationIds: { $in: accessibleOids } }, { allLocations: true }];
+  }
+
   if (query.isActive !== undefined) filter.isActive = query.isActive === 'true';
   if (query.searchTerm) {
     const term = escapeRegex(String(query.searchTerm));
@@ -229,8 +276,16 @@ const listStaff = async (query: Record<string, unknown>) => {
   return { data, meta: metaOf(page, limit, total) };
 };
 
-const getStaff = async (id: string) =>
-  found(await User.findById(id).populate('roleId', 'name permissions').lean(), 'Staff member');
+const getStaff = async (req: Request, id: string) => {
+  const staff = found(await User.findById(id).populate('roleId', 'name permissions').lean(), 'Staff member');
+  if (req.user.role === USER_ROLE.TENANT_MANAGER) {
+    const userInScope = staff.allLocations || (staff.locationIds || []).some((lId: any) => canAccessLocation(req, String(lId)));
+    if (!userInScope) {
+      throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to this staff member');
+    }
+  }
+  return staff;
+};
 
 const updateStaff = async (req: Request, id: string, payload: Partial<TStaffPayload> & { isActive?: boolean }) => {
   const user = found(await User.findById(id), 'Staff member');
@@ -238,7 +293,27 @@ const updateStaff = async (req: Request, id: string, payload: Partial<TStaffPayl
     throw new AppError(httpStatus.FORBIDDEN, 'The owner account can only be changed by the owner');
   }
   if (payload.role) assertCanAssignRole(req, payload.role);
-  if (user.role === USER_ROLE.TENANT_MANAGER) assertCanAssignRole(req, USER_ROLE.TENANT_MANAGER);
+  if (user.role === USER_ROLE.TENANT_MANAGER && req.user.role !== USER_ROLE.TENANT_OWNER && req.user.role !== USER_ROLE.SUPER_ADMIN) {
+    throw new AppError(httpStatus.FORBIDDEN, 'Only the owner can modify managers');
+  }
+
+  if (req.user.role === USER_ROLE.TENANT_MANAGER) {
+    const userInScope = user.allLocations || (user.locationIds || []).some((lId) => canAccessLocation(req, String(lId)));
+    if (!userInScope) {
+      throw new AppError(httpStatus.FORBIDDEN, 'You cannot manage staff outside your authorized locations');
+    }
+    if (payload.allLocations) {
+      throw new AppError(httpStatus.FORBIDDEN, 'Managers cannot assign staff to all locations');
+    }
+    if (payload.locationIds) {
+      for (const locId of payload.locationIds) {
+        if (!canAccessLocation(req, locId)) {
+          throw new AppError(httpStatus.FORBIDDEN, 'You cannot assign staff to locations outside your access scope');
+        }
+      }
+    }
+  }
+
   await validateGrants(payload);
 
   const before = user.toObject();
@@ -278,7 +353,15 @@ const setPin = async (id: string, pin: string) => {
 const removeStaff = async (req: Request, id: string) => {
   const user = found(await User.findById(id), 'Staff member');
   if (user.role === USER_ROLE.TENANT_OWNER) throw new AppError(httpStatus.FORBIDDEN, 'The owner cannot be removed');
-  if (user.role === USER_ROLE.TENANT_MANAGER) assertCanAssignRole(req, USER_ROLE.TENANT_MANAGER);
+  if (user.role === USER_ROLE.TENANT_MANAGER && req.user.role !== USER_ROLE.TENANT_OWNER && req.user.role !== USER_ROLE.SUPER_ADMIN) {
+    throw new AppError(httpStatus.FORBIDDEN, 'Only the owner can remove managers');
+  }
+  if (req.user.role === USER_ROLE.TENANT_MANAGER) {
+    const userInScope = user.allLocations || (user.locationIds || []).some((lId) => canAccessLocation(req, String(lId)));
+    if (!userInScope) {
+      throw new AppError(httpStatus.FORBIDDEN, 'You cannot remove staff outside your authorized locations');
+    }
+  }
   user.isDeleted = true;
   user.isActive = false;
   await user.save();

@@ -1,5 +1,6 @@
 import express from 'express';
 import auth, { authorize, tenantUser } from '../../middlewares/auth';
+import locationScope from '../../middlewares/locationScope';
 import validateRequest from '../../middlewares/validateRequest';
 import { PERMISSION, USER_ROLE } from './user.constant';
 import { UserControllers } from './user.controller';
@@ -20,19 +21,21 @@ router.patch('/me/pin', tenantUser(), validateRequest(UserValidation.setPinValid
 router.get('/check-email', tenantUser(), UserControllers.checkEmail);
 
 // Tenant staff management
-router.get('/staff', tenantUser(), authorize(PERMISSION.STAFF_MANAGE), UserControllers.listStaff);
+router.get('/staff', tenantUser(), authorize(PERMISSION.STAFF_MANAGE), locationScope({ required: false }), UserControllers.listStaff);
 router.post(
   '/staff',
   tenantUser(),
   authorize(PERMISSION.STAFF_MANAGE),
+  locationScope({ required: false }),
   validateRequest(UserValidation.createStaffValidationSchema),
   UserControllers.createStaff,
 );
-router.get('/staff/:id', tenantUser(), authorize(PERMISSION.STAFF_MANAGE), UserControllers.getStaff);
+router.get('/staff/:id', tenantUser(), authorize(PERMISSION.STAFF_MANAGE), locationScope({ required: false }), UserControllers.getStaff);
 router.patch(
   '/staff/:id',
   tenantUser(),
   authorize(PERMISSION.STAFF_MANAGE),
+  locationScope({ required: false }),
   validateRequest(UserValidation.updateStaffValidationSchema),
   UserControllers.updateStaff,
 );

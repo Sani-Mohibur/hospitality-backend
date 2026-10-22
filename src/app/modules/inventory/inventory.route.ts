@@ -2,7 +2,7 @@ import express from 'express';
 import { z } from 'zod';
 import httpStatus from 'http-status';
 import { authorize, tenantUser } from '../../middlewares/auth';
-import locationScope, { locationFilter, requireLocationId } from '../../middlewares/locationScope';
+import locationScope, { canAccessLocation, locationFilter, requireLocationId } from '../../middlewares/locationScope';
 import validateRequest from '../../middlewares/validateRequest';
 import catchAsync from '../../utils/catchAsync';
 import { ok } from '../../utils/sendResponse';
@@ -11,6 +11,7 @@ import { InventoryServices } from './inventory.service';
 import { PurchaseOrder, StockCount } from './inventory.model';
 import { found } from '../../utils/query';
 import { body, objectId, positiveMinor } from '../../utils/zod';
+import AppError from '../../errors/AppError';
 
 const router = express.Router();
 const P = PERMISSION;
@@ -62,14 +63,14 @@ router.post(
   '/waste',
   authorize(P.INVENTORY_MANAGE, P.KDS_UPDATE),
   validateRequest(body({ stockItemId: objectId, quantity: z.number().positive(), reason: z.string().min(2) })),
-  catchAsync(async (req, res) => ok(res, 'Waste logged', await InventoryServices.logWaste(req.body), { statusCode: httpStatus.CREATED })),
+  catchAsync(async (req, res) => ok(res, 'Waste logged', await InventoryServices.logWaste(req, req.body), { statusCode: httpStatus.CREATED })),
 );
 
 router.post(
   '/transfers',
   authorize(P.INVENTORY_MANAGE),
   validateRequest(body({ stockItemId: objectId, toLocationId: objectId, quantity: z.number().positive(), reason: z.string().optional() })),
-  catchAsync(async (req, res) => ok(res, 'Stock transferred', await InventoryServices.transfer(req.body), { statusCode: httpStatus.CREATED })),
+  catchAsync(async (req, res) => ok(res, 'Stock transferred', await InventoryServices.transfer(req, req.body), { statusCode: httpStatus.CREATED })),
 );
 
 // ----- Recipes -----
@@ -103,7 +104,13 @@ router.get(
   catchAsync(async (req, res) => ok(res, 'Purchase orders', await PurchaseOrder.find({ ...locationFilter(req), ...(req.query.status ? { status: String(req.query.status) } : {}) } as any).populate('supplierId', 'name').sort({ createdAt: -1 }).lean())),
 );
 
-router.get('/purchase-orders/:id', authorize(P.INVENTORY_VIEW), catchAsync(async (req, res) => ok(res, 'Purchase order', found(await PurchaseOrder.findById(req.params.id).populate('supplierId lines.stockItemId').lean(), 'Purchase order'))));
+router.get('/purchase-orders/:id', authorize(P.INVENTORY_VIEW), catchAsync(async (req, res) => {
+  const po = found(await PurchaseOrder.findById(req.params.id).populate('supplierId lines.stockItemId').lean(), 'Purchase order');
+  if (!canAccessLocation(req, (po as any).locationId)) {
+    throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to this purchase order');
+  }
+  ok(res, 'Purchase order', po);
+}));
 
 router.post(
   '/purchase-orders',
@@ -113,13 +120,13 @@ router.post(
   catchAsync(async (req, res) => ok(res, 'Purchase order created', await InventoryServices.createPurchaseOrder(requireLocationId(req), req.body), { statusCode: httpStatus.CREATED })),
 );
 
-router.post('/purchase-orders/:id/send', authorize(P.INVENTORY_MANAGE), catchAsync(async (req, res) => ok(res, 'Purchase order sent', await InventoryServices.sendPurchaseOrder(req.params.id as string))));
+router.post('/purchase-orders/:id/send', authorize(P.INVENTORY_MANAGE), catchAsync(async (req, res) => ok(res, 'Purchase order sent', await InventoryServices.sendPurchaseOrder(req, req.params.id as string))));
 
 router.post(
   '/purchase-orders/:id/receive',
   authorize(P.INVENTORY_RECEIVE, P.INVENTORY_MANAGE),
   validateRequest(body({ lines: z.array(z.object({ stockItemId: objectId, quantity: z.number().positive(), unitCost: positiveMinor.optional() })).min(1) })),
-  catchAsync(async (req, res) => ok(res, 'Goods received', await InventoryServices.receivePurchaseOrder(req.params.id as string, req.body.lines))),
+  catchAsync(async (req, res) => ok(res, 'Goods received', await InventoryServices.receivePurchaseOrder(req, req.params.id as string, req.body.lines))),
 );
 
 router.get('/reorder-suggestions', authorize(P.INVENTORY_VIEW), locationScope(), catchAsync(async (req, res) => ok(res, 'Reorder suggestions', await InventoryServices.reorderSuggestions(requireLocationId(req)))));
@@ -127,8 +134,8 @@ router.get('/reorder-suggestions', authorize(P.INVENTORY_VIEW), locationScope(),
 // ----- Stock counts -----
 router.get('/counts', authorize(P.INVENTORY_VIEW), locationScope({ required: false }), catchAsync(async (req, res) => ok(res, 'Stock counts', await StockCount.find(locationFilter(req)).sort({ createdAt: -1 }).limit(50).lean())));
 router.post('/counts', authorize(P.INVENTORY_MANAGE), locationScope(), validateRequest(body({ category: z.string().optional() })), catchAsync(async (req, res) => ok(res, 'Stock count started', await InventoryServices.startCount(requireLocationId(req), req.body.category), { statusCode: httpStatus.CREATED })));
-router.patch('/counts/:id', authorize(P.INVENTORY_MANAGE, P.INVENTORY_RECEIVE), validateRequest(body({ lines: z.array(z.object({ stockItemId: objectId, counted: z.number().min(0) })).min(1) })), catchAsync(async (req, res) => ok(res, 'Count saved', await InventoryServices.saveCount(req.params.id as string, req.body.lines))));
-router.post('/counts/:id/post', authorize(P.INVENTORY_MANAGE), catchAsync(async (req, res) => ok(res, 'Stock count posted', await InventoryServices.postCount(req.params.id as string))));
+router.patch('/counts/:id', authorize(P.INVENTORY_MANAGE, P.INVENTORY_RECEIVE), validateRequest(body({ lines: z.array(z.object({ stockItemId: objectId, counted: z.number().min(0) })).min(1) })), catchAsync(async (req, res) => ok(res, 'Count saved', await InventoryServices.saveCount(req, req.params.id as string, req.body.lines))));
+router.post('/counts/:id/post', authorize(P.INVENTORY_MANAGE), catchAsync(async (req, res) => ok(res, 'Stock count posted', await InventoryServices.postCount(req, req.params.id as string))));
 
 // ----- Food cost -----
 router.get(
@@ -139,17 +146,17 @@ router.get(
 );
 
 // ----- One item -----
-router.get('/:id', authorize(P.INVENTORY_VIEW), catchAsync(async (req, res) => ok(res, 'Inventory item retrieved successfully', await InventoryServices.getItemById(req.params.id as string))));
+router.get('/:id', authorize(P.INVENTORY_VIEW), catchAsync(async (req, res) => ok(res, 'Inventory item retrieved successfully', await InventoryServices.getItemById(req, req.params.id as string))));
 
-router.patch('/:id', authorize(P.INVENTORY_MANAGE), validateRequest(z.object({ body: itemFields.partial() })), catchAsync(async (req, res) => ok(res, 'Inventory item updated successfully', await InventoryServices.updateItem(req.params.id as string, req.body))));
+router.patch('/:id', authorize(P.INVENTORY_MANAGE), validateRequest(z.object({ body: itemFields.partial() })), catchAsync(async (req, res) => ok(res, 'Inventory item updated successfully', await InventoryServices.updateItem(req, req.params.id as string, req.body))));
 
 router.patch(
   '/:id/adjust',
   authorize(P.INVENTORY_MANAGE),
   validateRequest(body({ quantityChange: z.number().positive('Change amount must be a positive number'), type: z.enum(['ADD', 'SUBTRACT']), reason: z.string().min(2) })),
-  catchAsync(async (req, res) => ok(res, 'Stock adjusted successfully', await InventoryServices.adjustStock(req.params.id as string, req.body))),
+  catchAsync(async (req, res) => ok(res, 'Stock adjusted successfully', await InventoryServices.adjustStock(req, req.params.id as string, req.body))),
 );
 
-router.delete('/:id', authorize(P.INVENTORY_MANAGE), catchAsync(async (req, res) => ok(res, 'Inventory item deleted successfully', await InventoryServices.deleteItem(req.params.id as string))));
+router.delete('/:id', authorize(P.INVENTORY_MANAGE), catchAsync(async (req, res) => ok(res, 'Inventory item deleted successfully', await InventoryServices.deleteItem(req, req.params.id as string))));
 
 export const InventoryRoutes = router;

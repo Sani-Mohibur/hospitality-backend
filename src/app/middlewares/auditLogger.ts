@@ -33,6 +33,7 @@ const auditLogger = (entity?: string) => {
         entityId: idParam ? new Types.ObjectId(idParam as string) : undefined,
         user: req.user?.id ? new Types.ObjectId(req.user.id) : undefined,
         tenantId: req.user?.tenantId ? new Types.ObjectId(req.user.tenantId) : undefined,
+        locationId: req.locationId && Types.ObjectId.isValid(req.locationId) ? new Types.ObjectId(req.locationId) : undefined,
         impersonatedBy: req.user?.impersonatedBy ? new Types.ObjectId(req.user.impersonatedBy) : undefined,
         statusCode: res.statusCode,
         details: {

@@ -6,6 +6,7 @@ export interface IAuditLog {
   entity: string;
   entityId?: Types.ObjectId;
   tenantId?: Types.ObjectId;
+  locationId?: Types.ObjectId;
   user?: Types.ObjectId;
   impersonatedBy?: Types.ObjectId;
   details: Record<string, any>;

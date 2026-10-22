@@ -11,7 +11,7 @@ const getAuditLogs = catchAsync(async (req: Request, res: Response) => {
     query.tenantId = req.user.tenantId;
   }
 
-  const result = await AuditLogService.getAuditLogs(query);
+  const result = await AuditLogService.getAuditLogs(req, query);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -24,7 +24,7 @@ const getAuditLogs = catchAsync(async (req: Request, res: Response) => {
 
 // Human-readable activity feed for managers.
 const getActivity = catchAsync(async (req: Request, res: Response) => {
-  const result = await AuditLogService.getActivity({ ...req.query, locationId: req.locationId });
+  const result = await AuditLogService.getActivity(req, req.query);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,

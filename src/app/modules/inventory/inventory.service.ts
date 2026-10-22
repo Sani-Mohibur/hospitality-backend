@@ -14,6 +14,9 @@ import { onDomainEvent } from '../../utils/domainEvents';
 import { found, metaOf, paginationOf } from '../../utils/query';
 import logger from '../../utils/logger';
 
+import { Request } from 'express';
+import { canAccessLocation } from '../../middlewares/locationScope';
+
 type TId = Types.ObjectId | string;
 
 // ---------- Items ----------
@@ -21,10 +24,11 @@ const createItem = async (payload: Partial<IInventoryItem> & { openingQuantity?:
   const { openingQuantity, ...rest } = payload;
   return runInTransaction(async () => {
     const [item] = await InventoryItem.create([{ ...rest, quantity: 0 }]);
+    if (!item) throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to create inventory item');
     if (openingQuantity) {
-      await recordMovement({ stockItemId: item!._id, type: 'OPENING', quantity: openingQuantity, unitCost: rest.unitCost, reason: 'Opening stock' });
+      await recordMovement({ stockItemId: item._id, type: 'OPENING', quantity: openingQuantity, unitCost: rest.unitCost, reason: 'Opening stock' });
     }
-    return InventoryItem.findById(item!._id).lean();
+    return InventoryItem.findById(item._id).lean();
   });
 };
 
@@ -36,20 +40,32 @@ const getAllItems = async (filter: Record<string, unknown>, query: Record<string
   return InventoryItem.find(where).populate('supplierId', 'name').sort({ category: 1, name: 1 }).lean();
 };
 
-const getItemById = async (id: string) => {
+const getItemById = async (req: Request, id: string) => {
   const item = found(await InventoryItem.findById(id).populate('supplierId', 'name').lean(), 'Inventory item');
+  if (!canAccessLocation(req, item.locationId)) {
+    throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to this inventory item');
+  }
   const movements = await StockMovement.find({ stockItemId: id }).sort({ createdAt: -1 }).limit(50).lean();
   return { ...item, movements };
 };
 
 // Quantity is intentionally not editable here: use a movement (receipt, waste, count...).
-const updateItem = async (id: string, payload: Partial<IInventoryItem>) => {
+const updateItem = async (req: Request, id: string, payload: Partial<IInventoryItem>) => {
+  const existing = found(await InventoryItem.findById(id), 'Inventory item');
+  if (!canAccessLocation(req, existing.locationId)) {
+    throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to this inventory item');
+  }
   const { quantity: _ignored, ...rest } = payload as any;
   return found(await InventoryItem.findByIdAndUpdate(id, rest, { returnDocument: 'after', runValidators: true }), 'Inventory item');
 };
 
-const deleteItem = async (id: string) =>
-  found(await InventoryItem.findByIdAndUpdate(id, { isDeleted: true, isActive: false }, { returnDocument: 'after' }), 'Inventory item');
+const deleteItem = async (req: Request, id: string) => {
+  const existing = found(await InventoryItem.findById(id), 'Inventory item');
+  if (!canAccessLocation(req, existing.locationId)) {
+    throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to this inventory item');
+  }
+  return found(await InventoryItem.findByIdAndUpdate(id, { isDeleted: true, isActive: false }, { returnDocument: 'after' }), 'Inventory item');
+};
 
 // ---------- Movement ledger ----------
 type TMovementInput = {
@@ -87,7 +103,7 @@ export const recordMovement = async (input: TMovementInput) => {
       type: input.type,
       quantity: input.quantity,
       unitCost: input.unitCost ?? item.unitCost,
-      quantityAfter: updated!.quantity,
+      quantityAfter: updated ? updated.quantity : item.quantity + input.quantity,
       reason: input.reason,
       ref: input.ref,
       createdBy: requestContext.get()?.userId,
@@ -96,39 +112,54 @@ export const recordMovement = async (input: TMovementInput) => {
   return movement;
 };
 
-const adjustStock = async (id: string, payload: { quantityChange: number; type: 'ADD' | 'SUBTRACT'; reason: string }) =>
+const adjustStock = async (req: Request, id: string, payload: { quantityChange: number; type: 'ADD' | 'SUBTRACT'; reason: string }) =>
   runInTransaction(async () => {
+    const item = found(await InventoryItem.findById(id), 'Inventory item');
+    if (!canAccessLocation(req, item.locationId)) {
+      throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to this inventory item');
+    }
     const signed = payload.type === 'ADD' ? payload.quantityChange : -payload.quantityChange;
     await recordMovement({ stockItemId: id, type: 'ADJUSTMENT', quantity: signed, reason: payload.reason });
-    const item = await InventoryItem.findById(id).lean();
-    await activity.record({ action: 'STOCK_ADJUSTED', entity: 'InventoryItem', entityId: id, message: `Adjusted ${item?.name} by ${signed}: ${payload.reason}` });
-    return item;
+    const updated = await InventoryItem.findById(id).lean();
+    await activity.record({ action: 'STOCK_ADJUSTED', entity: 'InventoryItem', entityId: id, message: `Adjusted ${updated?.name} by ${signed}: ${payload.reason}` });
+    return updated;
   });
 
-const logWaste = async (payload: { stockItemId: string; quantity: number; reason: string }) =>
+const logWaste = async (req: Request, payload: { stockItemId: string; quantity: number; reason: string }) =>
   runInTransaction(async () => {
+    const item = found(await InventoryItem.findById(payload.stockItemId), 'Inventory item');
+    if (!canAccessLocation(req, item.locationId)) {
+      throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to this inventory item');
+    }
     const movement = await recordMovement({ stockItemId: payload.stockItemId, type: 'WASTE', quantity: -Math.abs(payload.quantity), reason: payload.reason });
     await activity.record({ action: 'WASTE', entity: 'InventoryItem', entityId: payload.stockItemId, message: `Waste ${payload.quantity}: ${payload.reason}` });
     return movement;
   });
 
 // Moves stock between two locations of the tenant (same SKU at both ends).
-const transfer = async (payload: { stockItemId: string; toLocationId: string; quantity: number; reason?: string }) =>
+const transfer = async (req: Request, payload: { stockItemId: string; toLocationId: string; quantity: number; reason?: string }) =>
   runInTransaction(async () => {
     const from = found(await InventoryItem.findById(payload.stockItemId), 'Inventory item');
+    if (!canAccessLocation(req, from.locationId)) {
+      throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to the source location');
+    }
+    if (!canAccessLocation(req, payload.toLocationId)) {
+      throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to the destination location');
+    }
     if (String(from.locationId) === payload.toLocationId) throw new AppError(httpStatus.BAD_REQUEST, 'Choose another location');
     found(await Location.findById(payload.toLocationId).lean(), 'Location');
     let to = await InventoryItem.findOne({ locationId: payload.toLocationId, sku: from.sku });
     if (!to) {
       const [created] = await InventoryItem.create([
-        { name: from.name, sku: from.sku, category: from.category, unitOfMeasure: from.unitOfMeasure, unitCost: from.unitCost, locationId: payload.toLocationId, quantity: 0 },
+        { name: from.name, sku: from.sku, category: from.category, unitOfMeasure: from.unitOfMeasure, unitCost: from.unitCost, locationId: new Types.ObjectId(payload.toLocationId), quantity: 0 },
       ]);
-      to = created!;
+      if (!created) throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to create destination inventory item');
+      to = created;
     }
     const ref = { kind: 'Transfer', id: new Types.ObjectId().toHexString() };
     await recordMovement({ stockItemId: from._id, type: 'TRANSFER_OUT', quantity: -payload.quantity, reason: payload.reason, ref });
-    await recordMovement({ stockItemId: to!._id, type: 'TRANSFER_IN', quantity: payload.quantity, unitCost: from.unitCost, reason: payload.reason, ref });
-    return { from: from._id, to: to!._id, quantity: payload.quantity };
+    await recordMovement({ stockItemId: to._id, type: 'TRANSFER_IN', quantity: payload.quantity, unitCost: from.unitCost, reason: payload.reason, ref });
+    return { from: from._id, to: to._id, quantity: payload.quantity };
   });
 
 const movements = async (filter: Record<string, unknown>, query: Record<string, unknown>) => {
@@ -211,8 +242,11 @@ const createPurchaseOrder = async (locationId: string, payload: { supplierId: st
   return PurchaseOrder.create({ ...payload, locationId, number: `PO-${String(seq).padStart(5, '0')}`, createdBy: requestContext.get()?.userId });
 };
 
-const sendPurchaseOrder = async (id: string) => {
+const sendPurchaseOrder = async (req: Request, id: string) => {
   const po = found(await PurchaseOrder.findById(id), 'Purchase order');
+  if (!canAccessLocation(req, po.locationId)) {
+    throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to this purchase order');
+  }
   if (po.status !== 'DRAFT') throw new AppError(httpStatus.CONFLICT, `Purchase order is ${po.status}`);
   po.status = 'SENT';
   po.sentAt = new Date();
@@ -231,9 +265,12 @@ const sendPurchaseOrder = async (id: string) => {
 };
 
 // Goods in: receipt movements at the delivered cost; partial deliveries allowed.
-const receivePurchaseOrder = async (id: string, lines: { stockItemId: string; quantity: number; unitCost?: number }[]) =>
+const receivePurchaseOrder = async (req: Request, id: string, lines: { stockItemId: string; quantity: number; unitCost?: number }[]) =>
   runInTransaction(async () => {
     const po = found(await PurchaseOrder.findById(id), 'Purchase order');
+    if (!canAccessLocation(req, po.locationId)) {
+      throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to this purchase order');
+    }
     if (!['SENT', 'PARTIALLY_RECEIVED', 'DRAFT'].includes(po.status)) throw new AppError(httpStatus.CONFLICT, `Purchase order is ${po.status}`);
     for (const received of lines) {
       const line = po.lines.find((l) => String(l.stockItemId) === received.stockItemId);
@@ -261,8 +298,11 @@ const startCount = async (locationId: string, category?: string) => {
   return StockCount.create({ locationId, lines: items.map((i) => ({ stockItemId: i._id, expected: i.quantity })), countedBy: requestContext.get()?.userId });
 };
 
-const saveCount = async (id: string, lines: { stockItemId: string; counted: number }[]) => {
+const saveCount = async (req: Request, id: string, lines: { stockItemId: string; counted: number }[]) => {
   const count = found(await StockCount.findOne({ _id: id, status: 'OPEN' }), 'Open stock count');
+  if (!canAccessLocation(req, count.locationId)) {
+    throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to this stock count');
+  }
   for (const l of lines) {
     const line = count.lines.find((x) => String(x.stockItemId) === l.stockItemId);
     if (line) line.counted = l.counted;
@@ -272,9 +312,12 @@ const saveCount = async (id: string, lines: { stockItemId: string; counted: numb
 };
 
 // Posting a count books the differences as COUNT movements (shrinkage / overage).
-const postCount = async (id: string) =>
+const postCount = async (req: Request, id: string) =>
   runInTransaction(async () => {
     const count = found(await StockCount.findOne({ _id: id, status: 'OPEN' }), 'Open stock count');
+    if (!canAccessLocation(req, count.locationId)) {
+      throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to this stock count');
+    }
     let variances = 0;
     for (const line of count.lines) {
       if (line.counted === undefined || line.counted === null) continue;

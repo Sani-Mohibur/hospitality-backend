@@ -58,7 +58,12 @@ const record = async (input: TRecordInput) => {
   return event;
 };
 
-const getAuditLogs = async (query: Record<string, unknown>) => {
+import { Request } from 'express';
+import httpStatus from 'http-status';
+import AppError from '../../errors/AppError';
+import { canAccessLocation } from '../../middlewares/locationScope';
+
+const getAuditLogs = async (req: Request, query: Record<string, unknown>) => {
   const filter: Record<string, unknown> = {};
   if (query.tenantId) filter.tenantId = query.tenantId;
   if (query.user) filter.user = query.user;
@@ -76,6 +81,36 @@ const getAuditLogs = async (query: Record<string, unknown>) => {
       { ipAddress: { $regex: term, $options: 'i' } },
       { 'details.url': { $regex: term, $options: 'i' } },
     ];
+  }
+
+  const effectiveLocationId = req.locationId || (typeof query.locationId === 'string' && query.locationId) || undefined;
+  if (effectiveLocationId) {
+    if (!canAccessLocation(req, effectiveLocationId)) {
+      throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to this location');
+    }
+    const locOid = Types.ObjectId.isValid(effectiveLocationId) ? new Types.ObjectId(effectiveLocationId) : null;
+    const locationCondition = locOid
+      ? [{ locationId: locOid }, { 'details.locationId': effectiveLocationId }]
+      : [{ 'details.locationId': effectiveLocationId }];
+    if (filter.$or) {
+      filter.$and = [{ $or: filter.$or }, { $or: locationCondition }];
+      delete filter.$or;
+    } else {
+      filter.$or = locationCondition;
+    }
+  } else if (!req.user.allLocations) {
+    const accessibleOids = (req.user.locationIds || []).filter((id: string) => Types.ObjectId.isValid(id)).map((id: string) => new Types.ObjectId(id));
+    const accessibleIds = (req.user.locationIds || []).map((id: string) => String(id));
+    const locationCondition = [
+      { locationId: { $in: accessibleOids } },
+      { 'details.locationId': { $in: accessibleIds } },
+    ];
+    if (filter.$or) {
+      filter.$and = [{ $or: filter.$or }, { $or: locationCondition }];
+      delete filter.$or;
+    } else {
+      filter.$or = locationCondition;
+    }
   }
 
   const page = Math.max(Number(query.page) || 1, 1);
@@ -103,9 +138,19 @@ const getAuditLogs = async (query: Record<string, unknown>) => {
   };
 };
 
-const getActivity = async (query: Record<string, unknown>) => {
+const getActivity = async (req: Request, query: Record<string, unknown>) => {
   const filter: Record<string, unknown> = {};
-  if (query.locationId) filter.locationId = new Types.ObjectId(String(query.locationId));
+  const effectiveLocationId = req.locationId || (typeof query.locationId === 'string' && query.locationId) || undefined;
+  if (effectiveLocationId) {
+    if (!canAccessLocation(req, effectiveLocationId)) {
+      throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to this location');
+    }
+    filter.locationId = new Types.ObjectId(effectiveLocationId);
+  } else if (!req.user.allLocations) {
+    const accessibleOids = (req.user.locationIds || []).filter((id: string) => Types.ObjectId.isValid(id)).map((id: string) => new Types.ObjectId(id));
+    filter.locationId = { $in: accessibleOids };
+  }
+
   if (query.entity) filter.entity = query.entity;
   if (query.entityId) filter.entityId = new Types.ObjectId(String(query.entityId));
   if (query.action) filter.action = query.action;

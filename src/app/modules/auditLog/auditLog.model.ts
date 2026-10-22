@@ -19,6 +19,11 @@ const auditLogSchema = new Schema<IAuditLog>(
       ref: 'Tenant',
       index: true,
     },
+    locationId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Location',
+      index: true,
+    },
     user: {
       type: Schema.Types.ObjectId,
       ref: 'User',

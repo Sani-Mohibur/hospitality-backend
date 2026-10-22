@@ -16,8 +16,10 @@ const readLocationId = (req: Request): string | undefined => {
   return candidate || undefined;
 };
 
-export const canAccessLocation = (req: Request, locationId: string) =>
-  req.user.allLocations || req.user.locationIds.includes(locationId);
+export const canAccessLocation = (req: Request, locationId?: Types.ObjectId | string | null) => {
+  if (!locationId || !Types.ObjectId.isValid(locationId)) return false;
+  return Boolean(req.user.allLocations || req.user.locationIds.includes(String(locationId)));
+};
 
 // Resolves the working location from the X-Location-Id header (or locationId in
 // query/body), checks it belongs to the tenant and that the user is granted it.
@@ -27,9 +29,12 @@ const locationScope = (options: { required?: boolean } = { required: true }) => 
     if (!req.user?.tenantId) throw new AppError(httpStatus.FORBIDDEN, 'No tenant selected');
     const locationId = readLocationId(req) || req.user.deviceLocationId;
 
-    if (!locationId) {
+    if (!locationId || locationId === 'ALL' || locationId === 'all') {
       if (options.required) {
         throw new AppError(httpStatus.BAD_REQUEST, 'Select a location (X-Location-Id header)');
+      }
+      if ((locationId === 'ALL' || locationId === 'all') && !req.user.allLocations) {
+        throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to all locations');
       }
       return next();
     }

@@ -12,7 +12,7 @@ const createLocation = catchAsync(async (req, res) => {
 
 // Returns only the locations the user is granted.
 const getAllLocations = catchAsync(async (req, res) => {
-  const all = await LocationServices.getAllLocations();
+  const all = await LocationServices.getAllLocations(req.user.tenantId, req.query);
   const result = all.filter((l) => canAccessLocation(req, String(l._id)));
   ok(res, 'Locations retrieved successfully', result);
 });
@@ -20,14 +20,14 @@ const getAllLocations = catchAsync(async (req, res) => {
 const getLocationById = catchAsync(async (req, res) => {
   const id = req.params.id as string;
   if (!canAccessLocation(req, id)) throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to this location');
-  const result = await LocationServices.getLocationById(id);
+  const result = await LocationServices.getLocationById(id, req.user.tenantId);
   ok(res, 'Location retrieved successfully', result);
 });
 
 const updateLocation = catchAsync(async (req, res) => {
   const id = req.params.id as string;
   if (!canAccessLocation(req, id)) throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to this location');
-  const result = await LocationServices.updateLocation(id, req.body);
+  const result = await LocationServices.updateLocation(req.user.tenantId!, id, req.body);
   ok(res, 'Location updated successfully', result);
 });
 

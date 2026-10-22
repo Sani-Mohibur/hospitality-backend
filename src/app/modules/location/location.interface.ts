@@ -24,6 +24,11 @@ export interface ILocation {
     slug?: string;
   };
   invoicePrefix: string;
+  coordinates?: {
+    latitude?: number;
+    longitude?: number;
+  };
+  mapUrl?: string;
   isActive: boolean;
   isDeleted: boolean;
 }

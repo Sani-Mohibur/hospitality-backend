@@ -36,6 +36,11 @@ const locationSchema = new Schema<ILocation>(
       slug: { type: String, lowercase: true, trim: true },
     },
     invoicePrefix: { type: String, default: 'INV' },
+    coordinates: {
+      latitude: { type: Number },
+      longitude: { type: Number },
+    },
+    mapUrl: { type: String },
     isActive: {
       type: Boolean,
       default: true,

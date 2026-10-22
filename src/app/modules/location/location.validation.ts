@@ -27,6 +27,13 @@ const fields = {
   publicBooking: z
     .object({ enabled: z.boolean().optional(), slug: z.string().regex(/^[a-z0-9-]{3,60}$/).optional() })
     .optional(),
+  coordinates: z
+    .object({
+      latitude: z.number().min(-90).max(90).optional(),
+      longitude: z.number().min(-180).max(180).optional(),
+    })
+    .optional(),
+  mapUrl: z.string().url().optional().or(z.literal('')),
 };
 
 const createLocationValidationSchema = z.object({

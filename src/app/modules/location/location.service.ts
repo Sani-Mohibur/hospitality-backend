@@ -17,26 +17,34 @@ const createLocation = async (tenantId: string, payload: TLocationInput) => {
   return result;
 };
 
-const getAllLocations = async (filter: Record<string, unknown> = {}) => {
-  const idFilter = filter.locationId ? { _id: filter.locationId } : {};
-  const result = await Location.find(idFilter).sort({ name: 1 });
+const getAllLocations = async (tenantId?: string, filter: Record<string, unknown> = {}) => {
+  const query: Record<string, unknown> = {};
+  if (tenantId) query.tenantId = tenantId;
+  if (filter.locationId) query._id = filter.locationId;
+  const result = await Location.find(query).sort({ name: 1 });
   return result;
 };
 
-const getLocationById = async (id: string) => found(await Location.findById(id), 'Location');
+const getLocationById = async (id: string, tenantId?: string) => {
+  const query: Record<string, unknown> = { _id: id };
+  if (tenantId) query.tenantId = tenantId;
+  return found(await Location.findOne(query), 'Location');
+};
 
 // The business date is owned by the night audit and cannot be edited here.
-const updateLocation = async (id: string, payload: TLocationInput) => {
-  const location = found(await Location.findById(id), 'Location');
+const updateLocation = async (tenantId: string, id: string, payload: TLocationInput) => {
+  const location = found(await Location.findOne({ _id: id, tenantId }), 'Location');
   const before = location.toObject();
   if (payload.publicBooking?.slug) {
     const taken = await Location.exists({ 'publicBooking.slug': payload.publicBooking.slug, _id: { $ne: id } });
     if (taken) throw new AppError(httpStatus.CONFLICT, 'That booking page address is taken');
   }
-  const { nightAudit, publicBooking, ...rest } = payload;
+  const { nightAudit, publicBooking, coordinates, ...rest } = payload;
   Object.assign(location, rest);
   if (nightAudit) Object.assign(location.nightAudit, nightAudit);
   if (publicBooking) Object.assign(location.publicBooking, publicBooking);
+  if (coordinates) location.coordinates = { ...location.coordinates, ...coordinates };
+  if (payload.mapUrl !== undefined) location.mapUrl = payload.mapUrl;
   await location.save();
   await activity.record({
     action: 'LOCATION_UPDATED',
@@ -51,7 +59,7 @@ const updateLocation = async (id: string, payload: TLocationInput) => {
 
 const deleteLocation = async (tenantId: string, id: string) => {
   const result = found(
-    await Location.findByIdAndUpdate(id, { isDeleted: true, isActive: false }, { returnDocument: 'after' }),
+    await Location.findOneAndUpdate({ _id: id, tenantId }, { isDeleted: true, isActive: false }, { returnDocument: 'after' }),
     'Location',
   );
   await activity.record({ action: 'LOCATION_DELETED', entity: 'Location', entityId: result._id, message: `Closed location ${result.name}` });

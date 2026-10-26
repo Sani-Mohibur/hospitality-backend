@@ -41,7 +41,8 @@ const featureFlagValidationSchema = z.object({
 
 const updateMyTenantValidationSchema = z.object({
   body: z.object({
-    name: z.string().min(2).optional(),
+    name: z.string().min(1).optional(),
+    workspaceName: z.string().min(1).optional(),
     currency: z.string().length(3).optional(),
     branding: z
       .object({

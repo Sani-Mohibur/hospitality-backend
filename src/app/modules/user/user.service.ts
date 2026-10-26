@@ -20,6 +20,7 @@ import { sendEmail } from '../../utils/sendEmail';
 import { requestContext } from '../../utils/requestContext';
 import { escapeRegex, found, metaOf, paginationOf } from '../../utils/query';
 import { canAccessLocation } from '../../middlewares/locationScope';
+import { invalidateTenantCache } from '../../middlewares/auth';
 import logger from '../../utils/logger';
 
 const getProfile = async (userId: string) => {
@@ -39,9 +40,18 @@ const getProfile = async (userId: string) => {
       if (tenantDoc.subscriptionId) {
         subscription = await requestContext.asSystem(() => Subscription.findById(tenantDoc.subscriptionId).lean());
       }
+      let tenantName = tenantDoc.name;
+      const ownerFirstWord = result.name ? result.name.trim().split(/\s+/)[0] : '';
+      if (
+        result.role === USER_ROLE.TENANT_OWNER &&
+        ownerFirstWord &&
+        (!tenantName || (result.name.includes(' ') && tenantName === `${result.name.trim()}'s Workspace`))
+      ) {
+        tenantName = `${ownerFirstWord}'s Workspace`;
+      }
       tenant = {
         id: tenantDoc._id,
-        name: tenantDoc.name,
+        name: tenantName,
         status: tenantDoc.status,
         subscribedModules: tenantDoc.modules,
         subscription,
@@ -53,9 +63,10 @@ const getProfile = async (userId: string) => {
 };
 
 // Only personal fields can be changed here; role, tenant and grants are managed by admins.
+// TENANT_OWNER can also update workspace name through here.
 const updateProfile = async (
   userId: string,
-  payload: Partial<Pick<IUser, 'name' | 'phone' | 'profileImage'>>,
+  payload: Partial<Pick<IUser, 'name' | 'phone' | 'profileImage'>> & { workspaceName?: string },
   file?: any,
 ) =>
   requestContext.asSystem(async () => {
@@ -84,6 +95,19 @@ const updateProfile = async (
     const oldPublicId = isUserExist.profileImage?.publicId;
     if (file && oldPublicId) {
       await fileDeleter.deleteFromCloudinary(oldPublicId);
+    }
+
+    if (
+      payload.workspaceName &&
+      isUserExist.role === USER_ROLE.TENANT_OWNER &&
+      isUserExist.tenantId
+    ) {
+      await Tenant.findByIdAndUpdate(
+        isUserExist.tenantId,
+        { name: payload.workspaceName.trim() },
+        { runValidators: true },
+      );
+      invalidateTenantCache(String(isUserExist.tenantId));
     }
 
     return result;

@@ -81,10 +81,17 @@ export const createTenantWithOwner = async (payload: TSignupPayload) => {
 
   const { owner, tenant } = await requestContext.asSystem(() =>
     runInTransaction(async () => {
-      const slug = await uniqueSlug(payload.businessName);
+      const ownerFirstWord = payload.ownerName ? payload.ownerName.trim().split(/\s+/)[0] : '';
+      const defaultWorkspaceName = ownerFirstWord ? `${ownerFirstWord}'s Workspace` : 'Workspace';
+      const effectiveBusinessName =
+        payload.businessName && payload.businessName !== `${payload.ownerName?.trim()}'s Workspace`
+          ? payload.businessName
+          : defaultWorkspaceName;
+
+      const slug = await uniqueSlug(effectiveBusinessName);
       const [tenant] = await Tenant.create([
         {
-          name: payload.businessName,
+          name: effectiveBusinessName,
           slug,
           modules,
           currency: (payload.currency || 'USD').toUpperCase(),
@@ -99,7 +106,7 @@ export const createTenantWithOwner = async (payload: TSignupPayload) => {
         const [location] = await Location.create([
           {
             tenantId,
-            name: payload.locationName || payload.businessName,
+            name: payload.locationName || effectiveBusinessName,
             address: payload.address,
             timezone,
             businessDate: localDate(timezone),
@@ -139,7 +146,13 @@ export const createTenantWithOwner = async (payload: TSignupPayload) => {
 };
 
 const signup = async (payload: TSignupPayload, meta: TClientMeta) => {
-  const { owner, tenant } = await createTenantWithOwner(payload);
+  const ownerFirstWord = payload.ownerName ? payload.ownerName.trim().split(/\s+/)[0] : '';
+  const defaultWorkspaceName = ownerFirstWord ? `${ownerFirstWord}'s Workspace` : 'Workspace';
+  const businessName =
+    payload.businessName && payload.businessName !== `${payload.ownerName?.trim()}'s Workspace`
+      ? payload.businessName
+      : defaultWorkspaceName;
+  const { owner, tenant } = await createTenantWithOwner({ ...payload, businessName });
   const tokens = await issueTokens(owner, meta);
   return { ...tokens, user: publicUser(owner), tenant: { _id: tenant._id, name: tenant.name, slug: tenant.slug } };
 };

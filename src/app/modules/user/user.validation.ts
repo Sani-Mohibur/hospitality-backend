@@ -37,6 +37,7 @@ const updateProfileValidationSchema = z.object({
   body: z.object({
     name: z.string().min(1).optional(),
     phone: z.string().optional(),
+    workspaceName: z.string().min(1).optional(),
   }),
 });
 

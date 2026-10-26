@@ -6,7 +6,6 @@ const tenantSchema = new Schema<ITenant>(
     name: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
     },
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },

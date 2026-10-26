@@ -169,6 +169,7 @@ const getMyTenant = async (tenantId: string) =>
   });
 
 type TSelfUpdate = Partial<Pick<ITenant, 'name' | 'currency' | 'branding' | 'loyalty'>> & {
+  workspaceName?: string;
   settings?: Partial<ITenant['settings']>;
 };
 
@@ -176,7 +177,8 @@ const updateMyTenant = async (tenantId: string, payload: TSelfUpdate) =>
   requestContext.asSystem(async () => {
     const tenant = found(await Tenant.findById(tenantId), 'Tenant');
     const before = tenant.toObject();
-    if (payload.name) tenant.name = payload.name;
+    const newName = payload.name || payload.workspaceName;
+    if (newName) tenant.name = newName.trim();
     if (payload.currency) tenant.currency = payload.currency.toUpperCase();
     if (payload.branding) tenant.branding = { ...(before.branding || {}), ...payload.branding };
     if (payload.loyalty) tenant.loyalty = { ...(before.loyalty || { enabled: false, pointsPerMajorUnit: 1, pointValueMinor: 1 }), ...payload.loyalty };

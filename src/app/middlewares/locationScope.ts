@@ -33,7 +33,8 @@ const locationScope = (options: { required?: boolean } = { required: true }) => 
       locationId === 'ALL' ||
       locationId === 'all' ||
       locationId === 'ALL_HOSPITALITY' ||
-      locationId === 'ALL_RESTAURANT';
+      locationId === 'ALL_RESTAURANT' ||
+      locationId === 'ALL_RETAIL';
 
     if (!locationId || isSyntheticAll) {
       if (options.required) {
@@ -43,11 +44,12 @@ const locationScope = (options: { required?: boolean } = { required: true }) => 
         throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to all locations');
       }
 
-      if (locationId === 'ALL_HOSPITALITY' || locationId === 'ALL_RESTAURANT') {
-        const branchType = locationId === 'ALL_HOSPITALITY' ? 'HOSPITALITY' : 'RESTAURANT';
+      if (locationId === 'ALL_HOSPITALITY' || locationId === 'ALL_RESTAURANT' || locationId === 'ALL_RETAIL') {
         const query: Record<string, unknown> = { tenantId: req.user.tenantId, isDeleted: { $ne: true } };
-        if (branchType === 'HOSPITALITY') {
+        if (locationId === 'ALL_HOSPITALITY') {
           query.$or = [{ branchType: 'HOSPITALITY' }, { hasRooms: true }];
+        } else if (locationId === 'ALL_RETAIL') {
+          query.branchType = 'RETAIL';
         } else {
           query.$or = [{ branchType: 'RESTAURANT' }, { branchType: { $exists: false }, hasRooms: false }];
         }

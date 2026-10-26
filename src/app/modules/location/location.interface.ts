@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
 
-export type TBranchType = 'HOSPITALITY' | 'RESTAURANT';
+export type TBranchType = 'HOSPITALITY' | 'RESTAURANT' | 'RETAIL';
 
 export interface ILocation {
   name: string;

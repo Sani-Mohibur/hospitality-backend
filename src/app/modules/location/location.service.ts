@@ -16,7 +16,7 @@ const createLocation = async (tenantId: string, payload: TLocationInput) => {
   let hasRooms = payload.hasRooms;
   if (branchType === 'HOSPITALITY') {
     hasRooms = true;
-  } else if (branchType === 'RESTAURANT') {
+  } else if (branchType === 'RESTAURANT' || branchType === 'RETAIL') {
     hasRooms = false;
   }
 
@@ -74,7 +74,7 @@ const updateLocation = async (tenantId: string, id: string, payload: TLocationIn
     location.branchType = payload.branchType;
     if (payload.branchType === 'HOSPITALITY') {
       location.hasRooms = true;
-    } else if (payload.branchType === 'RESTAURANT') {
+    } else if (payload.branchType === 'RESTAURANT' || payload.branchType === 'RETAIL') {
       location.hasRooms = false;
     }
   }

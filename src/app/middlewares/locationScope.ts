@@ -29,13 +29,35 @@ const locationScope = (options: { required?: boolean } = { required: true }) => 
     if (!req.user?.tenantId) throw new AppError(httpStatus.FORBIDDEN, 'No tenant selected');
     const locationId = readLocationId(req) || req.user.deviceLocationId;
 
-    if (!locationId || locationId === 'ALL' || locationId === 'all') {
+    const isSyntheticAll =
+      locationId === 'ALL' ||
+      locationId === 'all' ||
+      locationId === 'ALL_HOSPITALITY' ||
+      locationId === 'ALL_RESTAURANT';
+
+    if (!locationId || isSyntheticAll) {
       if (options.required) {
         throw new AppError(httpStatus.BAD_REQUEST, 'Select a location (X-Location-Id header)');
       }
-      if ((locationId === 'ALL' || locationId === 'all') && !req.user.allLocations) {
+      if (isSyntheticAll && !req.user.allLocations) {
         throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to all locations');
       }
+
+      if (locationId === 'ALL_HOSPITALITY' || locationId === 'ALL_RESTAURANT') {
+        const branchType = locationId === 'ALL_HOSPITALITY' ? 'HOSPITALITY' : 'RESTAURANT';
+        const query: Record<string, unknown> = { tenantId: req.user.tenantId, isDeleted: { $ne: true } };
+        if (branchType === 'HOSPITALITY') {
+          query.$or = [{ branchType: 'HOSPITALITY' }, { hasRooms: true }];
+        } else {
+          query.$or = [{ branchType: 'RESTAURANT' }, { branchType: { $exists: false }, hasRooms: false }];
+        }
+        if (!req.user.allLocations && req.user.locationIds?.length) {
+          query._id = { $in: req.user.locationIds };
+        }
+        const locs = await Location.find(query).select('_id').lean();
+        req.scopedLocationIds = locs.map((l) => l._id as Types.ObjectId);
+      }
+
       return next();
     }
     if (!Types.ObjectId.isValid(locationId)) throw new AppError(httpStatus.BAD_REQUEST, 'Invalid location id');
@@ -58,6 +80,9 @@ const locationScope = (options: { required?: boolean } = { required: true }) => 
 // Filter for list endpoints: the chosen location, or every location the user may see.
 export const locationFilter = (req: Request): Record<string, unknown> => {
   if (req.locationId) return { locationId: new Types.ObjectId(req.locationId) };
+  if (req.scopedLocationIds && req.scopedLocationIds.length >= 0) {
+    return { locationId: { $in: req.scopedLocationIds } };
+  }
   if (req.user.allLocations) return {};
   return { locationId: { $in: req.user.locationIds.map((id) => new Types.ObjectId(id)) } };
 };

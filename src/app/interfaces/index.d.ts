@@ -6,6 +6,7 @@ declare global {
       user: TAuthUser;
       // Active location resolved and verified by the locationScope middleware
       locationId?: string;
+      scopedLocationIds?: import('mongoose').Types.ObjectId[];
       // Raw body bytes kept for webhook signature checks
       rawBody?: Buffer;
     }

@@ -66,6 +66,7 @@ router.get(
   catchAsync(async (req, res) => {
     const filter: Record<string, unknown> = {};
     if (req.locationId) filter.$or = [{ locationId: req.locationId }, { locationId: null }];
+    else if (req.scopedLocationIds) filter.$or = [{ locationId: { $in: req.scopedLocationIds } }, { locationId: null }];
     if (req.query.categoryId) filter.categoryId = req.query.categoryId;
     if (req.query.master === 'true') filter.locationId = null;
     ok(res, 'Menu items retrieved successfully', await MenuItem.find(filter).populate('categoryId', 'name').sort({ sortOrder: 1, name: 1 }).lean());

@@ -40,7 +40,11 @@ router.get(
   '/',
   locationScope({ required: false }),
   catchAsync(async (req, res) => {
-    const filter = req.locationId ? { $or: [{ locationId: req.locationId }, { locationId: null }] } : {};
+    const filter = req.locationId
+      ? { $or: [{ locationId: req.locationId }, { locationId: null }] }
+      : req.scopedLocationIds
+      ? { $or: [{ locationId: { $in: req.scopedLocationIds } }, { locationId: null }] }
+      : {};
     ok(res, 'Menu categories retrieved successfully', await MenuCategory.find(filter).sort({ sortOrder: 1, name: 1 }).lean());
   }),
 );

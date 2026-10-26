@@ -98,6 +98,19 @@ const getAuditLogs = async (req: Request, query: Record<string, unknown>) => {
     } else {
       filter.$or = locationCondition;
     }
+  } else if (req.scopedLocationIds && req.scopedLocationIds.length >= 0) {
+    const accessibleOids = req.scopedLocationIds;
+    const accessibleIds = req.scopedLocationIds.map((id) => String(id));
+    const locationCondition = [
+      { locationId: { $in: accessibleOids } },
+      { 'details.locationId': { $in: accessibleIds } },
+    ];
+    if (filter.$or) {
+      filter.$and = [{ $or: filter.$or }, { $or: locationCondition }];
+      delete filter.$or;
+    } else {
+      filter.$or = locationCondition;
+    }
   } else if (!req.user.allLocations) {
     const accessibleOids = (req.user.locationIds || []).filter((id: string) => Types.ObjectId.isValid(id)).map((id: string) => new Types.ObjectId(id));
     const accessibleIds = (req.user.locationIds || []).map((id: string) => String(id));
@@ -146,6 +159,8 @@ const getActivity = async (req: Request, query: Record<string, unknown>) => {
       throw new AppError(httpStatus.FORBIDDEN, 'You do not have access to this location');
     }
     filter.locationId = new Types.ObjectId(effectiveLocationId);
+  } else if (req.scopedLocationIds && req.scopedLocationIds.length >= 0) {
+    filter.locationId = { $in: req.scopedLocationIds };
   } else if (!req.user.allLocations) {
     const accessibleOids = (req.user.locationIds || []).filter((id: string) => Types.ObjectId.isValid(id)).map((id: string) => new Types.ObjectId(id));
     filter.locationId = { $in: accessibleOids };

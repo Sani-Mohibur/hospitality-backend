@@ -22,6 +22,9 @@ router.use(tenantUser(), authorize(PERMISSION.REPORTS_VIEW), locationScope({ req
 // Reports cover the chosen location, or every location the user is granted.
 const scopeOf = (req: Request) => {
   if (req.locationId) return { locationIds: [new Types.ObjectId(req.locationId)] };
+  if (req.scopedLocationIds && req.scopedLocationIds.length >= 0) {
+    return { locationIds: req.scopedLocationIds };
+  }
   if (req.user.allLocations) return {};
   return { locationIds: req.user.locationIds.map((id) => new Types.ObjectId(id)) };
 };

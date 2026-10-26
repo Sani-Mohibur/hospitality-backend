@@ -5,13 +5,42 @@ import { Location } from './location.model';
 import { localDate } from '../../utils/businessDate';
 import { SubscriptionServices } from '../subscription/subscription.service';
 import { activity } from '../auditLog/auditLog.service';
+import { Outlet, Station } from '../outlet/outlet.model';
 import { found } from '../../utils/query';
 
 type TLocationInput = Partial<Omit<ILocation, 'businessDate' | 'tenantId'>>;
 
 const createLocation = async (tenantId: string, payload: TLocationInput) => {
   const timezone = payload.timezone || 'UTC';
-  const result = await Location.create({ ...payload, tenantId, timezone, businessDate: localDate(timezone) });
+  const branchType = payload.branchType;
+  let hasRooms = payload.hasRooms;
+  if (branchType === 'HOSPITALITY') {
+    hasRooms = true;
+  } else if (branchType === 'RESTAURANT') {
+    hasRooms = false;
+  }
+
+  const result = await Location.create({
+    ...payload,
+    branchType,
+    hasRooms: hasRooms ?? false,
+    tenantId,
+    timezone,
+    businessDate: localDate(timezone),
+  });
+
+  if (branchType === 'RESTAURANT') {
+    const existingOutlet = await Outlet.findOne({ tenantId, locationId: result._id });
+    if (!existingOutlet) {
+      const [outlet] = await Outlet.create([{ tenantId, locationId: result._id, name: 'Restaurant' }]);
+      const [station] = await Station.create([
+        { tenantId, locationId: result._id, outletId: outlet!._id, name: 'Kitchen', type: 'KITCHEN' },
+      ]);
+      outlet!.defaultStationId = station!._id;
+      await outlet!.save();
+    }
+  }
+
   await activity.record({ action: 'LOCATION_CREATED', entity: 'Location', entityId: result._id, message: `Added location ${result.name}` });
   await SubscriptionServices.recalculate(tenantId);
   return result;
@@ -41,6 +70,14 @@ const updateLocation = async (tenantId: string, id: string, payload: TLocationIn
   }
   const { nightAudit, publicBooking, coordinates, ...rest } = payload;
   Object.assign(location, rest);
+  if (payload.branchType) {
+    location.branchType = payload.branchType;
+    if (payload.branchType === 'HOSPITALITY') {
+      location.hasRooms = true;
+    } else if (payload.branchType === 'RESTAURANT') {
+      location.hasRooms = false;
+    }
+  }
   if (nightAudit) Object.assign(location.nightAudit, nightAudit);
   if (publicBooking) Object.assign(location.publicBooking, publicBooking);
   if (coordinates) location.coordinates = { ...location.coordinates, ...coordinates };

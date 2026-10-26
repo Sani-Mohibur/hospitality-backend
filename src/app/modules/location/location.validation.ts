@@ -21,6 +21,7 @@ const fields = {
   currency: z.string().length(3).optional(),
   checkInTime: timeOfDay.optional(),
   checkOutTime: timeOfDay.optional(),
+  branchType: z.enum(['HOSPITALITY', 'RESTAURANT']).optional(),
   hasRooms: z.boolean().optional(),
   invoicePrefix: z.string().max(10).optional(),
   nightAudit: z.object({ autoRun: z.boolean().optional(), runAt: timeOfDay.optional() }).optional(),

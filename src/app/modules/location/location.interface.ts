@@ -1,9 +1,12 @@
 import { Types } from 'mongoose';
 
+export type TBranchType = 'HOSPITALITY' | 'RESTAURANT';
+
 export interface ILocation {
   name: string;
   code?: string;
   tenantId: Types.ObjectId;
+  branchType?: TBranchType;
   address?: string;
   phone?: string;
   email?: string;

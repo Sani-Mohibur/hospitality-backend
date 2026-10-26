@@ -25,6 +25,10 @@ const locationSchema = new Schema<ILocation>(
     businessDate: { type: String, required: true },
     checkInTime: { type: String, default: '14:00' },
     checkOutTime: { type: String, default: '11:00' },
+    branchType: {
+      type: String,
+      enum: ['HOSPITALITY', 'RESTAURANT'],
+    },
     hasRooms: { type: Boolean, default: false },
     nightAudit: {
       autoRun: { type: Boolean, default: false },

@@ -45,7 +45,7 @@ router.post(
         timezone: z.string().optional(),
         locationName: z.string().optional(),
         address: z.string().optional(),
-        modules: z.array(z.enum(['HOSPITALITY', 'RESTAURANT', 'INVENTORY', 'DISTRIBUTION', 'AI_ASSISTANT'])).optional(),
+        modules: z.array(z.enum(['HOSPITALITY', 'RESTAURANT', 'RETAIL', 'INVENTORY', 'DISTRIBUTION', 'AI_ASSISTANT'])).optional(),
       }),
     }),
   ),

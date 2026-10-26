@@ -61,6 +61,16 @@ export const DEFAULT_PLATFORM_MODULES: IPlatformModule[] = [
     bundleMinimumMinor: 9900,
   },
   {
+    code: 'RETAIL',
+    name: 'Retail / Merchandise shop',
+    description: 'Product catalogue, retail inventory, retail POS, barcodes, sales & returns',
+    isActive: true,
+    isAddOn: false,
+    pricingModel: 'PER_LOCATION',
+    unitPriceMinor: 3900,
+    minimumMinor: 3900,
+  },
+  {
     code: 'DISTRIBUTION',
     name: 'Booking engine + channel manager',
     isActive: true,

@@ -408,7 +408,7 @@ const subscribeTenant = async (
   }
 
   const validModules = (payload.modules || []).filter((m) =>
-    ['HOSPITALITY', 'RESTAURANT', 'INVENTORY', 'DISTRIBUTION', 'AI_ASSISTANT'].includes(m),
+    ['HOSPITALITY', 'RESTAURANT', 'RETAIL', 'INVENTORY', 'DISTRIBUTION', 'AI_ASSISTANT'].includes(m),
   );
   if (!validModules.length) {
     throw new AppError(httpStatus.BAD_REQUEST, 'At least one valid platform module must be selected.');
@@ -421,7 +421,11 @@ const subscribeTenant = async (
       ? 'Hotel + Restaurant Suite'
       : validModules.includes('HOSPITALITY')
         ? 'Hotel Management'
-        : 'Restaurant Management');
+        : validModules.includes('RESTAURANT')
+          ? 'Restaurant Management'
+          : validModules.includes('RETAIL')
+            ? 'Retail Management'
+            : 'Custom Suite');
 
   return requestContext.asSystem(async () => {
     return runInTransaction(async () => {

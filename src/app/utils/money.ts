@@ -10,6 +10,7 @@ export const TAX_CATEGORY = {
   MINIBAR: 'MINIBAR',
   LAUNDRY: 'LAUNDRY',
   SPA: 'SPA',
+  RETAIL: 'RETAIL',
   OTHER: 'OTHER',
   NONE: 'NONE',
 } as const;

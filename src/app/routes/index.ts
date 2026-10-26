@@ -22,6 +22,8 @@ import { MenuItemRoutes } from '../modules/restaurant/menuItem/menuItem.route';
 import { TableRoutes } from '../modules/restaurant/table/table.route';
 import { OrderRoutes } from '../modules/restaurant/order/order.route';
 import { ShiftRoutes } from '../modules/shift/shift.route';
+import { RetailCategoryRoutes } from '../modules/retail/retailCategory/retailCategory.route';
+import { RetailProductRoutes } from '../modules/retail/retailProduct/retailProduct.route';
 import { ApprovalRoutes } from '../modules/approval/approval.route';
 import { PaymentRoutes } from '../modules/payment/payment.route';
 import { InventoryRoutes } from '../modules/inventory/inventory.route';
@@ -72,6 +74,10 @@ const moduleRoutes = [
   { path: '/restaurant/table', route: TableRoutes },
   { path: '/restaurant/order', route: OrderRoutes },
   { path: '/shift', route: ShiftRoutes },
+
+  // Retail
+  { path: '/retail/category', route: RetailCategoryRoutes },
+  { path: '/retail/product', route: RetailProductRoutes },
 
   // Shared
   { path: '/approval', route: ApprovalRoutes },

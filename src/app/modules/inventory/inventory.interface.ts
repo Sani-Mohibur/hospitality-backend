@@ -64,9 +64,12 @@ export interface IRecipe {
 export interface ISupplier {
   tenantId: Types.ObjectId;
   name: string;
+  code?: string;
   contactName?: string;
   email?: string;
   phone?: string;
+  address?: string;
+  taxNumber?: string;
   leadTimeDays: number;
   notes?: string;
   isActive: boolean;

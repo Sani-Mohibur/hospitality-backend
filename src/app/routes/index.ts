@@ -24,6 +24,11 @@ import { OrderRoutes } from '../modules/restaurant/order/order.route';
 import { ShiftRoutes } from '../modules/shift/shift.route';
 import { RetailCategoryRoutes } from '../modules/retail/retailCategory/retailCategory.route';
 import { RetailProductRoutes } from '../modules/retail/retailProduct/retailProduct.route';
+import { RetailInventoryRoutes } from '../modules/retail/retailInventory/retailInventory.route';
+import { RetailSupplierRoutes } from '../modules/retail/retailSupplier/retailSupplier.route';
+import { RetailPurchaseOrderRoutes } from '../modules/retail/retailPurchaseOrder/retailPurchaseOrder.route';
+import { RetailTransferRoutes } from '../modules/retail/retailTransfer/retailTransfer.route';
+import { RetailStocktakeRoutes } from '../modules/retail/retailStocktake/retailStocktake.route';
 import { ApprovalRoutes } from '../modules/approval/approval.route';
 import { PaymentRoutes } from '../modules/payment/payment.route';
 import { InventoryRoutes } from '../modules/inventory/inventory.route';
@@ -78,6 +83,11 @@ const moduleRoutes = [
   // Retail
   { path: '/retail/category', route: RetailCategoryRoutes },
   { path: '/retail/product', route: RetailProductRoutes },
+  { path: '/retail/inventory', route: RetailInventoryRoutes },
+  { path: '/retail/supplier', route: RetailSupplierRoutes },
+  { path: '/retail/purchase-order', route: RetailPurchaseOrderRoutes },
+  { path: '/retail/transfer', route: RetailTransferRoutes },
+  { path: '/retail/stocktake', route: RetailStocktakeRoutes },
 
   // Shared
   { path: '/approval', route: ApprovalRoutes },

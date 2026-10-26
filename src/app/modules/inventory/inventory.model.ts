@@ -84,9 +84,12 @@ const supplierSchema = new Schema<ISupplier>(
   {
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
     name: { type: String, required: true },
+    code: { type: String, uppercase: true, trim: true },
     contactName: { type: String },
     email: { type: String },
     phone: { type: String },
+    address: { type: String },
+    taxNumber: { type: String },
     leadTimeDays: { type: Number, default: 2, min: 0 },
     notes: { type: String },
     isActive: { type: Boolean, default: true },

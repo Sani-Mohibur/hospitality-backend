@@ -35,6 +35,7 @@ export const FOLIO_SOURCE = {
   TRANSFER: 'TRANSFER',
   REVERSAL: 'REVERSAL',
   QR_ORDER: 'QR_ORDER',
+  RETAIL: 'RETAIL',
 } as const;
 
 export type TFolioStatus = keyof typeof FOLIO_STATUS;

@@ -21,7 +21,9 @@ export type TDomainEvent =
   | 'payment.completed'
   | 'payment.refunded'
   | 'inventory.low'
-  | 'availability.changed';
+  | 'availability.changed'
+  | 'retailSale.completed'
+  | 'retailReturn.completed';
 
 type THandler = (payload: any) => Promise<void> | void;
 

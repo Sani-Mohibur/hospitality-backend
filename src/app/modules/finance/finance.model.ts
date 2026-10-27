@@ -39,6 +39,7 @@ export const CHARGE_GROUP = {
   FEE: 'FEE',
   PAYMENT: 'PAYMENT',
   TRANSFER: 'TRANSFER',
+  RETAIL: 'RETAIL',
   OTHER: 'OTHER',
 } as const;
 
@@ -89,6 +90,7 @@ export const SYSTEM_CHARGE_CODES: Omit<IChargeCode, 'tenantId' | 'isActive'>[] =
   { code: 'TIP', name: 'Gratuity', group: 'TIP', taxCategory: 'NONE', glCode: '2300', isSystem: true },
   { code: 'CXL', name: 'Cancellation / no-show fee', group: 'FEE', taxCategory: 'ROOM', glCode: '4050', isSystem: true },
   { code: 'MISC', name: 'Miscellaneous', group: 'OTHER', taxCategory: 'OTHER', glCode: '4900', isSystem: true },
+  { code: 'RETAIL', name: 'Retail merchandise', group: 'RETAIL', taxCategory: 'RETAIL', glCode: '4700', isSystem: true },
   { code: 'PAY', name: 'Payment', group: 'PAYMENT', taxCategory: 'NONE', glCode: '1100', isSystem: true },
   { code: 'XFER', name: 'Transfer', group: 'TRANSFER', taxCategory: 'NONE', glCode: '1200', isSystem: true },
 ];

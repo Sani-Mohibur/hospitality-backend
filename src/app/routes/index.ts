@@ -29,6 +29,9 @@ import { RetailSupplierRoutes } from '../modules/retail/retailSupplier/retailSup
 import { RetailPurchaseOrderRoutes } from '../modules/retail/retailPurchaseOrder/retailPurchaseOrder.route';
 import { RetailTransferRoutes } from '../modules/retail/retailTransfer/retailTransfer.route';
 import { RetailStocktakeRoutes } from '../modules/retail/retailStocktake/retailStocktake.route';
+import { RetailPosRoutes } from '../modules/retail/retailSale/retailPos.route';
+import { RetailSaleRoutes } from '../modules/retail/retailSale/retailSale.route';
+import { RetailReportRoutes } from '../modules/retail/retailReport/retailReport.route';
 import { ApprovalRoutes } from '../modules/approval/approval.route';
 import { PaymentRoutes } from '../modules/payment/payment.route';
 import { InventoryRoutes } from '../modules/inventory/inventory.route';
@@ -88,6 +91,11 @@ const moduleRoutes = [
   { path: '/retail/purchase-order', route: RetailPurchaseOrderRoutes },
   { path: '/retail/transfer', route: RetailTransferRoutes },
   { path: '/retail/stocktake', route: RetailStocktakeRoutes },
+  { path: '/retail/pos', route: RetailPosRoutes },
+  { path: '/retail/sale', route: RetailSaleRoutes },
+  { path: '/retail/sales', route: RetailSaleRoutes },
+  { path: '/retail/report', route: RetailReportRoutes },
+  { path: '/retail/reports', route: RetailReportRoutes },
 
   // Shared
   { path: '/approval', route: ApprovalRoutes },

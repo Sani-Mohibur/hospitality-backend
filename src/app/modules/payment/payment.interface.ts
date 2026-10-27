@@ -27,6 +27,7 @@ export const PAYMENT_STATUS = {
 export const PAYMENT_TARGET = {
   ORDER: 'ORDER',
   FOLIO: 'FOLIO',
+  RETAIL_SALE: 'RETAIL_SALE',
 } as const;
 
 export type TPaymentMethod = keyof typeof PAYMENT_METHOD;
